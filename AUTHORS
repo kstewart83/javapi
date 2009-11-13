@@ -1,0 +1,8 @@
+AUTHORS:
+=======
+
+Frederic Peschanski - Project Leader / Main developer
+
+Vincent Gaudel - Bug fixes + broadcast extension + tutorial port from LuaPi
+Mathurin Petit - Experimental tracing system + visualization tool
+Lucas Vassord - Experimental tracing system
