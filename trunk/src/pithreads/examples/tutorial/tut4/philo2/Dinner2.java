@@ -2,23 +2,13 @@ package pithreads.examples.tutorial.tut4.philo2;
 
 import java.util.ArrayList;
 
-import javax.swing.JOptionPane;
-
-import pithreads.examples.tut4.philo1.Chair;
-import pithreads.examples.tut4.philo1.Fork;
-import pithreads.examples.tut4.philo1.Place;
-import pithreads.examples.tut4.philo1.Plate;
+import pithreads.examples.tutorial.tut4.philo1.Chair;
+import pithreads.examples.tutorial.tut4.philo1.Fork;
+import pithreads.examples.tutorial.tut4.philo1.Place;
+import pithreads.examples.tutorial.tut4.philo1.Plate;
 import pithreads.framework.PiAgent;
 import pithreads.framework.PiChannel;
 import pithreads.framework.PiThread;
-import pithreads.framework.debug.DebugFactory;
-import pithreads.framework.debug.EventList;
-import pithreads.framework.debug.PiAgentDebug;
-import pithreads.framework.debug.PiFactory;
-import pithreads.visualisation.ApplicationController;
-import pithreads.visualisation.PopUpStart;
-import pithreads.visualisation.model.IModel;
-import pithreads.visualisation.model.Model;
 
 public class Dinner2 {
 
@@ -32,18 +22,11 @@ public class Dinner2 {
 
         long startTime = System.currentTimeMillis();
 
-
-        PiFactory myFactory = new DebugFactory(true);
-        PiAgent agent = myFactory.newPiAgent();
-        EventList eventList = new EventList();
-
-        ((PiAgentDebug) agent).bind(eventList);
-        PopUpStart popUp = new PopUpStart(eventList);
-        popUp.setVisible(true);
-
+        PiAgent agent = new PiAgent();
+ 
         ArrayList<Fork> couverts = new ArrayList<Fork>();
         for (int i = 0; i < NBRES; i++) {
-            PiChannel<Integer> take = myFactory.newPiChannel(agent, "take" + i);
+            PiChannel<Integer> take = new PiChannel<Integer>(agent, "take" + i);
             PiThread fork = new PiThread(agent, "fork" + i);
             Fork oneFork = new Fork(take, i);
             couverts.add(oneFork);

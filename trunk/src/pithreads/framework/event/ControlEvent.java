@@ -2,112 +2,35 @@ package pithreads.framework.event;
 
 import java.util.EventObject;
 
-import pithreads.framework.debug.event.AddInputCommitmentEvent;
-import pithreads.framework.debug.event.AddOutputCommitmentEvent;
-import pithreads.framework.debug.event.ChannelAquiredEvent;
-import pithreads.framework.debug.event.ChannelReleasedEvent;
-import pithreads.framework.debug.event.FailedChannelAquireEvent;
-import pithreads.framework.debug.event.TakeInputCommitmentEvent;
-import pithreads.framework.debug.event.TakeOutputCommitmentEvent;
-import pithreads.framework.debug.event.ThreadCreateEvent;
-import pithreads.framework.debug.event.EndOfAgentEvent;
+import pithreads.framework.PiThread;
 
-
+/**
+ * 
+ * This is the base class for the hierarchy of
+ * event types that are used for the asynchronous communication
+ * between the PiThreads and their managing PiAgent.
+ * 
+ * These classes are not intended to be used at the user level.
+ * 
+ * @author Frederic Peschanski
+ * 
+ */
 public abstract class ControlEvent extends EventObject {
-	private static final long serialVersionUID = -8104975442770201118L;
-
-	public static enum Type { REGISTER_THREAD, UNREGISTER_THREAD, NEW_CHANNEL, RECLAIM_CHANNEL, LOG, 
-		WAIT_THREAD, AWAKE_THREAD, USER, CHANNEL_AQUIRED, FAILED_AQUIRE_CHANNEL, RELEASE_CHANNEL,
-		ADD_INPUT_COMMITMENT, ADD_OUTPUT_COMMITMENT, TAKE_INPUT_COMMITMENT, TAKE_OUTPUT_COMMITMENT, NEXT_TURN,
-        END_OF_AGENT, CREATE_THREAD} ;
-	
+	private static final long serialVersionUID = -4605970832989343301L;
 	private final long time;
-	protected final Type type;
 	
-	protected ControlEvent(Object source,Type type) {
+	protected ControlEvent(PiThread source) {
 		super(source);
-		this.type = type;
 		time = System.currentTimeMillis();
 	}
-
-    public AddInputCommitmentEvent asAddInputCommitment() {
-        return (AddInputCommitmentEvent) this;
-    }
-
-    public AddOutputCommitmentEvent asAddOutputCommitment() {
-        return (AddOutputCommitmentEvent) this;
-    }
-
-    public ChannelAquiredEvent asChannelAquiredEvent() {
-        return (ChannelAquiredEvent) this;
-    }
-
-    public ChannelReleasedEvent asChannelReleasedEvent() {
-        return (ChannelReleasedEvent) this;
-    }
-
-    public FailedChannelAquireEvent asFailedChannelAquireEvent() {
-        return (FailedChannelAquireEvent) this;
-    }
-
-    public TakeInputCommitmentEvent asTakeInputCommitmentEvent() {
-        return (TakeInputCommitmentEvent) this;
-    }
-
-    public TakeOutputCommitmentEvent asTakeOutputCommitment() {
-        return (TakeOutputCommitmentEvent) this;
-    }
-
-    public ThreadCreateEvent asThreadCreateEvent() {
-        return (ThreadCreateEvent) this;
-    }
 	
-	public Type getType() {
-		return type;
+	@Override
+	public PiThread getSource() {
+		return (PiThread) super.getSource();
 	}
-	
+
 	public long getTime() {
 		return time;
 	}
-	
-	public RegisterEvent asRegisterEvent() {
-		return (RegisterEvent) this;
-	}
-
-	public UnregisterEvent asUnregisterEvent() {
-		return (UnregisterEvent) this;
-	}
-	
-	public LogEvent asLogEvent() {
-		return (LogEvent) this;
-	}
-	
-	public NewEvent asNewEvent() {
-		return (NewEvent) this;
-	}
-	
-	public ReclaimEvent asReclaimEvent() {
-		return (ReclaimEvent) this;
-	}
-
-	public WaitEvent asWaitEvent() {
-		return (WaitEvent) this;
-	}
-	
-	public AwakeEvent asAwakeEvent() {
-		return (AwakeEvent) this;
-	}
-
-	public EndOfAgentEvent asEndOfAgentEvent() {
-		return (EndOfAgentEvent) this;
-	}
-	
-	public  String toString(){
-		return this.type.toString() + " " + source.toString() + " " + "\n";
-	}
-
-	public pithreads.framework.debug.event.NextTurnEvent asNextTurnEvent() {
-		return (pithreads.framework.debug.event.NextTurnEvent) this;
-	}
-
+		
 }

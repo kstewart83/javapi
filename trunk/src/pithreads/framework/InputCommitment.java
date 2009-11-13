@@ -1,4 +1,4 @@
-package pithreads.framework.commit;
+package pithreads.framework;
 
 import pithreads.framework.PiThread;
 

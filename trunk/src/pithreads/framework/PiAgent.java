@@ -1,5 +1,7 @@
 package pithreads.framework;
 
+import java.io.BufferedOutputStream;
+import java.io.PrintStream;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.TreeMap;
@@ -42,45 +44,37 @@ import pithreads.framework.event.WaitEvent;
  *
  */
 public class PiAgent extends Thread {
-	//public should be protected
-	public BlockingDeque<ControlEvent> eventQueue;
-	//public should be protected
-	public  final int QUEUE_CAPACITY = 256;
-	//public should be protected
-	public  TreeMap<Integer,PiThread> piThreads;
-	//public should be protected
-	public  TreeMap<Integer,PiChannel<?>> piChannels;
-	//public should be protected
-	public  Set<Integer> waitThreads;
-	//public should be protected
-	public  boolean initialSequence;
-	//public should be protected
-	public  long startTime;
-	//public should be protected
-	public  int genThreadId;
-	//public should be protected
-	public  int genChanId;	
+	private BlockingDeque<ControlEvent> eventQueue;
+	private final int QUEUE_CAPACITY = 256;
+	private TreeMap<Integer,PiThread> piThreads;
+	private TreeMap<Integer,PiChannel<?>> piChannels;
+	private Set<Integer> waitThreads;
+	private boolean initialSequence;
+	private long startTime;
+	private int genThreadId;
+	private int genChanId;
+	private PrintStream logStream;
+	private PrintStream debugStream;
+	private final boolean terminationDetector;
 	
 	public static final int ID_NOT_ASSIGNED = -1;
 	public static final int ID_ALREADY_REGISTERED = -2;
 	public static final int ID_TOO_MANY = -3;
 
-	
-	//public should be protected
-	public  static int genId = 0;
+	private static int genId = 0;
 	
 	/**
 	 * Create a Pi-agent (default name)
 	 */
-	public PiAgent() {
-		this("agent"+(genId++));
+	/* package */ PiAgent(boolean terminationDetector, PrintStream logStream, PrintStream debugStream) {
+		this("agent"+(genId++), terminationDetector, logStream, debugStream);
 	}
 	
 	/**
 	 * Create a named Pi-agent
 	 * @param name the name of the Pi-agent
 	 */
-	public PiAgent(String name) {
+	/* package */ PiAgent(String name, boolean terminationDetector, PrintStream logStream, PrintStream debugStream) {
 		super("agent"+(genId++));
 		eventQueue = new LinkedBlockingDeque<ControlEvent>(QUEUE_CAPACITY);
 		piThreads = new TreeMap<Integer,PiThread>();
@@ -90,7 +84,15 @@ public class PiAgent extends Thread {
 		genThreadId = 0;
 		genChanId = 0;
 		waitThreads = new HashSet<Integer>();
+		this.terminationDetector = terminationDetector;
+		this.logStream = logStream;
+		this.debugStream = debugStream;
+		
 		start();
+	}
+
+	public boolean detectTermination() {
+		return terminationDetector;
 	}
 	
 	/**
@@ -107,12 +109,12 @@ public class PiAgent extends Thread {
 	 * @param event the event to receive
 	 * @throws InterruptedException raised if the agent thread has been interrupted
 	 */
-	public void receiveEvent(ControlEvent event) throws InterruptedException { // should not be synchronized but ...
+	/* package */ void receiveEvent(ControlEvent event) throws InterruptedException { // should not be synchronized but ...
 		eventQueue.putFirst(event);
 	}
 	
 	
-	protected synchronized int generateId(int startId, Set<Integer> assignedIDs) {
+	private synchronized int generateId(int startId, Set<Integer> assignedIDs) {
 		int count = 0;
 		int id = startId;
 		
@@ -129,7 +131,7 @@ public class PiAgent extends Thread {
 		//return ID_TOO_MANY;
 	}
 	
-	protected void processRegisterEvent(RegisterEvent event) {
+	private void processRegisterEvent(RegisterEvent event) {
 		PiThread thread = event.getPiThread();
 		
 		if(thread.getThreadId()!=ID_NOT_ASSIGNED) {
@@ -149,7 +151,7 @@ public class PiAgent extends Thread {
 		genThreadId = (id+1);
 	}
 	
-	protected void processUnregisterEvent(UnregisterEvent event) {
+	private void processUnregisterEvent(UnregisterEvent event) {
 		if(piThreads.remove(event.getPiThread().getThreadId())==null)
 			throw new IllegalArgumentException("PiThread not registered");
 		waitThreads.remove(event.getPiThread().getThreadId());
@@ -157,7 +159,7 @@ public class PiAgent extends Thread {
 		log("Thread unregistered : " + event.getPiThread().getName());
 	}
 	
-	protected void processNewEvent(NewEvent event) {
+	private void processNewEvent(NewEvent event) {
 		PiChannel<?> chan = event.getPiChannel();
 		
 		if(chan.getId()!=ID_NOT_ASSIGNED) {
@@ -177,60 +179,67 @@ public class PiAgent extends Thread {
 		genChanId = (id+1);
 	}
 	
-	protected void processReclaimEvent(ReclaimEvent event) {
+	private void processReclaimEvent(ReclaimEvent event) {
 		if(piChannels.remove(event.getPiChannel().getId())==null)
 			throw new IllegalArgumentException("Pichannel not registered");
 		event.getPiChannel().assignId(ID_NOT_ASSIGNED);
 	}
 	
-	protected void processWaitEvent(WaitEvent event) {
+	private void processWaitEvent(WaitEvent event) {
 		waitThreads.add(event.getPiThread().getThreadId());
 	}
 
-	protected void processAwakeEvent(AwakeEvent event) {
+	private void processAwakeEvent(AwakeEvent event) {
 		waitThreads.remove(event.getPiThread().getThreadId());
 	}
-
-	protected synchronized void processLogEvent(LogEvent event) {
-		System.out.print("LOG@");
-		System.out.print(event.getTime()-startTime);
-		System.out.print(">");
-		System.out.println(event.getMessage());
-		System.out.flush();
+	
+	private void processLogEvent(LogEvent event) {
+		synchronized(logStream) {
+			StringBuffer buf = new StringBuffer();
+			buf.append("LOG@");
+			buf.append(event.getTime()-startTime);
+			buf.append("[PiThread:");
+			buf.append(event.getSource().getName());
+			buf.append("]");
+			buf.append(">");
+			buf.append(event.getMessage());
+			logStream.println(buf.toString());
+			logStream.flush();
+		}
 	}
 	
-	protected void log(String message) {
-		LogEvent event = new LogEvent(this,message);
-		processLogEvent(event);
+	private void log(String message) {
+		synchronized(logStream) {
+			StringBuffer buf = new StringBuffer();
+			buf.append("LOG@");
+			buf.append(System.currentTimeMillis()-startTime);
+			buf.append("[Agent:");
+			buf.append(getName());
+			buf.append("]");
+			buf.append(">");
+			buf.append(message);
+			logStream.println(buf.toString());
+			logStream.flush();
+		}		
 	}
 
-	protected void processEvent(ControlEvent event) {
-		switch(event.getType()) {
-		case REGISTER_THREAD:
-			processRegisterEvent(event.asRegisterEvent());
-			break;
-		case UNREGISTER_THREAD:
-			processUnregisterEvent(event.asUnregisterEvent());
-			break;
-		case LOG:
-			processLogEvent(event.asLogEvent());
-			break;
-		case NEW_CHANNEL:
-			processNewEvent(event.asNewEvent());
-			break;
-		case RECLAIM_CHANNEL:
-			processReclaimEvent(event.asReclaimEvent());
-			break; // for the moment do nothing
-		case WAIT_THREAD:
-			processWaitEvent(event.asWaitEvent());
-			break; // for the moment do nothing
-		case AWAKE_THREAD:
-			processAwakeEvent(event.asAwakeEvent());
-			break; // for the moment do nothing
-		case USER:
-			break; // TODO: user-defined event handling
-			default:
-				throw new IllegalArgumentException("Does not understand this event: "+event);
+	private void processEvent(ControlEvent event) {
+		if(event instanceof RegisterEvent) {
+			processRegisterEvent((RegisterEvent) event);
+		} else if(event instanceof UnregisterEvent) {
+			processUnregisterEvent((UnregisterEvent) event);
+		} else if(event instanceof LogEvent) {
+			processLogEvent((LogEvent) event);
+		} else if(event instanceof NewEvent) {
+			processNewEvent((NewEvent) event);
+		} else if(event instanceof ReclaimEvent) {
+			processReclaimEvent((ReclaimEvent) event);
+		} else if(event instanceof WaitEvent) {
+			processWaitEvent((WaitEvent) event);
+		} else if(event instanceof AwakeEvent) {
+			processAwakeEvent((AwakeEvent) event);
+		} else {
+			throw new IllegalArgumentException("Does not understand event: "+event);
 		}
 	}
 
@@ -247,7 +256,7 @@ public class PiAgent extends Thread {
 					processEvent(event);
 				}
 				
-				if(waitThreads.size() == piThreads.values().size() && eventQueue.size()==0 && !initialSequence) {
+				if(terminationDetector && waitThreads.size() == piThreads.values().size() && eventQueue.size()==0 && !initialSequence) {
 					/* Termination detection is started
 					 * look for all threads we know are waiting
 					 * (deposited commitments)

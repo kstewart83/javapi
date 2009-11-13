@@ -49,12 +49,14 @@ public class PiThread extends Thread {
 	public volatile long turn; // need a volatile value so than any change is
 	                            // immediately globally visible
 	
+	private static int genNameSuffix = 0;
+	
 	/**
 	 * Creates a new Pi-thread
 	 * @param agent a manager agent
 	 * @param name the name of the process (for debugging purpose)
 	 */	
-	public PiThread(PiAgent agent, String name) {
+	/* package */ PiThread(PiAgent agent, String name) {
 		super(name);
 		this.agent = agent;
 		id = -1;
@@ -83,8 +85,8 @@ public class PiThread extends Thread {
 	 * Creates a new Pi-thread (default name)
 	 * @param agent a manager agent
 	 */
-	public PiThread(PiAgent agent) {
-		this(agent,"thread");
+	/* package */ PiThread(PiAgent agent) {
+		this(agent,"thread"+(genNameSuffix++));
 	}
 	
 	/**
@@ -132,7 +134,7 @@ public class PiThread extends Thread {
 	 * process commitments.
 	 * @return a long integer representing the count.
 	 */
-	public synchronized long getTurn() {
+	/* package */ synchronized long getTurn() {
 		return turn;
 	}
 
@@ -159,14 +161,20 @@ public class PiThread extends Thread {
 	 * Log a message for the agent
 	 * @param message
 	 */
-	protected  void log(String message) {
-		agent.processLogEvent(new ThreadLogEvent(this,message));
+	protected  void log(String message) throws RunException {
+		try {
+			agent.receiveEvent(new ThreadLogEvent(this,message));
+		} catch (InterruptedException e) {
+			RunException re = new RunException("Thread interrupted: "+message);
+			re.initCause(e);
+			throw re;
+		}
 	}
 	
 	/*
 	 * Public but should be protected in framework and debug packages
 	 */
-	public  void sendEvent(ControlEvent event) throws InterruptedException {
+	private void sendEvent(ControlEvent event) throws InterruptedException {
 		agent.receiveEvent(event);
 	}
 	
@@ -178,11 +186,17 @@ public class PiThread extends Thread {
 				task.execute(this);
 			}
 		} catch(TerminationException te) {
-			log(te.getMessage());
+			try {
+				log(te.getMessage());
+			} catch (RunException e) {
+				Error error = new Error(e.getMessage());
+				error.initCause(e);
+				throw error;
+			}
 			//virer tous les commitment 
 			return;
 		} catch(RunException e) {
-			Error error = new Error("Thread interrupted: "+e.getMessage());
+			Error error = new Error(e.getMessage());
 			error.initCause(e);
 			throw error;
 		}
@@ -209,10 +223,7 @@ public class PiThread extends Thread {
 		enabledGuardIndex = index;
 	}
 	
-	/*
-	 * Public but should be protected in framework and debug packages
-	 */
-	public  void waitForCommitment() throws RunException {
+	/* package */ void waitForCommitment() throws RunException {
 		// block until awaken
 		try {
 			sendEvent(new WaitEvent(this));
@@ -228,10 +239,7 @@ public class PiThread extends Thread {
 		}
 	}
 	
-	/*
-	 * Public but should be protected in framework and debug packages
-	 */
-	public  boolean terminateFromAgent() {
+	/* package */  boolean terminateFromAgent() {
 		if(!awakeLock.compareAndSet(false, true)) {
 			return false;
 		}
@@ -246,10 +254,7 @@ public class PiThread extends Thread {
 		return true;
 	}
 	
-	/*
-	 * Public but should be protected in framework and debug packages
-	 */
-	public  boolean awake(Commitment commit, Object val) throws RunException {
+	private  boolean awake(Commitment commit, Object val) throws RunException {
 		// XXX: we need a lock to avoid a situation when 2 threads awake
 		// the same thread
 		// such a situation can occur in the case of a choice, a typical example is :
@@ -305,10 +310,7 @@ public class PiThread extends Thread {
 	}
 	
 
-	/*
-	 * Public but should be protected in framework and debug packages
-	 */
-	public  <T> T receiveOrCommit(PiChannel<T> channel, int guardIndex) throws RunException {
+	protected <T> T receiveOrCommit(PiChannel<T> channel, int guardIndex) throws RunException {
 		while(true) { // need to restart asking if got an invalid commitment
 			// first look for an output commitment
 			OutputCommitment output = channel.searchOutputCommitment();
@@ -327,10 +329,7 @@ public class PiThread extends Thread {
 		}
 	}
 
-	/*
-	 * Public but should be protected in framework and debug packages
-	 */
-	public  <T> T receive(PiChannel<T> channel) throws RunException {
+	/* package */ <T> T receive(PiChannel<T> channel) throws RunException {
 		channel.acquire(this);
 		T value = receiveOrCommit(channel,-1);
 		if(value==null) {
@@ -346,10 +345,7 @@ public class PiThread extends Thread {
 	}
 	
 
-	/*
-	 * Public but should be protected in framework and debug packages
-	 */
-	public  <T> boolean sendOrCommit(PiChannel<T> channel, T value, int guardIndex) throws RunException {
+	/* package */  <T> boolean sendOrCommit(PiChannel<T> channel, T value, int guardIndex) throws RunException {
 		
 		while(true) {
 			// first look for an output commitment
@@ -369,10 +365,7 @@ public class PiThread extends Thread {
 		
 	}
 
-	/*
-	 * Public but should be protected in framework and debug packages
-	 */
-	public  <T> void send(PiChannel<T> channel, T value) throws RunException {
+	/* package */  <T> void send(PiChannel<T> channel, T value) throws RunException {
 		channel.acquire(this);
 		boolean sent = sendOrCommit(channel, value, -1);
 		if(!sent) {
@@ -480,7 +473,8 @@ public class PiThread extends Thread {
 	public boolean equals(Object o) {
 		return o==this; // only referential equality
 	}
-	public <T> boolean trySend(PiChannel<T> channel,T value) throws RunException{
+
+	/* package */ <T> boolean trySend(PiChannel<T> channel,T value) throws RunException{
 		boolean inputTook=false;
 		channel.acquire(this);
 		
@@ -507,7 +501,7 @@ public class PiThread extends Thread {
 	}
 	
 	
-	public <T> Pair<T,Boolean> tryReceive(PiChannel<T> channel) throws RunException{
+	/* package */ <T> Pair<T,Boolean> tryReceive(PiChannel<T> channel) throws RunException{
 		T value=null;
 		channel.acquire(this);
 		
