@@ -1,4 +1,4 @@
-package pithreads.examples.cs;
+package pithreads.examples.tutorial.tut2.cs;
 
 import pithreads.framework.PiAgent;
 import pithreads.framework.PiChannel;

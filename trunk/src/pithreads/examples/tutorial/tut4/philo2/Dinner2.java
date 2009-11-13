@@ -1,4 +1,4 @@
-package pithreads.examples.tut4.philo2;
+package pithreads.examples.tutorial.tut4.philo2;
 
 import java.util.ArrayList;
 

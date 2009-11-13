@@ -1,4 +1,4 @@
-package pithreads.examples.tut4.philo1;
+package pithreads.examples.tutorial.tut4.philo1;
 
 import pithreads.framework.PiChannel;
 
