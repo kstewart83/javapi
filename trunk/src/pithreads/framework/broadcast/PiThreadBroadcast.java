@@ -63,7 +63,7 @@ public class PiThreadBroadcast extends PiThread{
 		}
 		for (int i = 0;i<cpt;i++){
 			receive(channel.getUnregister());
-			localUnregister(channel, this.id);
+			localUnregister(channel, getId());
 			log("unregistered "+i);
 		}
 		Pair<Integer,Boolean> unregistering = tryReceive(channel.getUnregister());

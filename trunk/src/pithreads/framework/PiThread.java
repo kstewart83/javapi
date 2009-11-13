@@ -23,36 +23,27 @@ import pithreads.framework.utils.Pair;
 
 /**
  * 
- * This class provides the implementation of Pi-threads
+ * This class provides the basic implementation of a Pi-thread.
  * 
  * A Pi-thread is a plain (Java) Thread with extensions to support the Pi-calculus
  * model of computation.
  * 
  * A Pi-thread is managed by a Pi-agent.
- * It has a plan, a set of tasks to execute (see {@link pithreads.framework.Task})
+ * It has a set of tasks to execute (see {@link pithreads.framework.Task})
  * (in most cases a Pi-threads executes a single task)
- * 
  * 
  * @author Frederic Peschanski
  *
  */
 public class PiThread extends Thread {
-	//public should be protected
-	public final PiAgent agent;
-	//public should be protected
-	public volatile int id;
-	//public should be protected
-	public Deque<Task> plan;
-	//public should be protected
-	public ImmediateLock immediateLock;
-	//public should be protected
-	public Object receivedValue;
-	//public should be protected
-	public int enabledGuardIndex;
-	//public should be protected
-	public AtomicBoolean awakeLock;
-	//public should be protected
-	public volatile boolean terminateFlag;
+	private final PiAgent agent;
+	private volatile int id;
+	private Deque<Task> tasks;
+	private ImmediateLock immediateLock;
+	private Object receivedValue;
+	private int enabledGuardIndex;
+	private AtomicBoolean awakeLock;
+	private volatile boolean terminateFlag;
 		
 	//public should be protected
 	public volatile long turn; // need a volatile value so than any change is
@@ -62,9 +53,7 @@ public class PiThread extends Thread {
 	 * Creates a new Pi-thread
 	 * @param agent a manager agent
 	 * @param name the name of the process (for debugging purpose)
-	 */
-
-	
+	 */	
 	public PiThread(PiAgent agent, String name) {
 		super(name);
 		this.agent = agent;
@@ -72,7 +61,7 @@ public class PiThread extends Thread {
 		turn = 0;
 		immediateLock = new ImmediateLock(); // 0 permit and not fair (not needed)
 		receivedValue = null;
-		plan = new ArrayDeque<Task>();
+		tasks = new ArrayDeque<Task>();
 		enabledGuardIndex = -1;
 		awakeLock = new AtomicBoolean(false);
 		terminateFlag = false;
@@ -104,18 +93,18 @@ public class PiThread extends Thread {
 	 * @param task the task to execute
 	 */
 	public synchronized void assignTask(Task task) {
-		plan.addLast(task);
+		tasks.addLast(task);
 	}
 
 	
 	protected synchronized Task nextTask() {
-		return plan.removeFirst();
+		return tasks.removeFirst();
 	}
 	
 	/* package */ synchronized void runTask(Task task) throws RunException {
-		plan.addFirst(task); // preemption
+		tasks.addFirst(task); // preemption
 		task.execute(this);
-		plan.removeFirst();		
+		tasks.removeFirst();		
 	}
 	
 	/**
@@ -131,9 +120,9 @@ public class PiThread extends Thread {
 	 * Check if this Pi-threads is currently blocking
 	 * @return true if the Pi-threads is blocking, false if running
 	 */
-	public boolean isBlocking() {
-		return immediateLock.isBlocking();
-	}
+	//public boolean isBlocking() {
+		//return immediateLock.isBlocking();
+	//}
 	
 	/**
 	 * Get the turn count of this Pi-thread.
@@ -146,10 +135,11 @@ public class PiThread extends Thread {
 	public synchronized long getTurn() {
 		return turn;
 	}
-	/*
-	 * Public but should be protected in framework and debug packages
+
+	/**
+	 * Increments the local turn
 	 */
-	public synchronized void nextTurn() {
+	private synchronized void nextTurn() {
 		if(turn==Long.MAX_VALUE) {
 			// should cleanup all commitments
 			// (maybe sending a blocking event to the agent ?)
@@ -157,14 +147,19 @@ public class PiThread extends Thread {
 		turn++;
 	}
 	
+	/**
+	 * Used by the Agent to assign the thread id upon registration
+	 * @param id The assigned thread identifier
+	 */
 	/* package */ void assignThreadId(int id) {	
 		this.id = id;
 	}
 	
-	/*
-	 * Public but should be protected in framework and debug packages
+	/**
+	 * Log a message for the agent
+	 * @param message
 	 */
-	public  void log(String message) {
+	protected  void log(String message) {
 		agent.processLogEvent(new ThreadLogEvent(this,message));
 	}
 	
@@ -178,7 +173,7 @@ public class PiThread extends Thread {
 	@Override
 	public void run() {
 		try {
-			while(!plan.isEmpty()) {
+			while(!tasks.isEmpty()) {
 				Task task = nextTask();
 				task.execute(this);
 			}
