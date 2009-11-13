@@ -73,7 +73,7 @@ public abstract class Task {
 	 * @param message the message to log
 	 */
 	//	 public should be protected
-	public final void log(String message) {
+	public final void log(String message) throws RunException {
 		thread.log(message);
 	}
 	

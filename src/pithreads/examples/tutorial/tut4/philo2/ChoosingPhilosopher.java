@@ -1,6 +1,6 @@
 package pithreads.examples.tutorial.tut4.philo2;
 
-import pithreads.examples.tut4.philo1.Place;
+import pithreads.examples.tutorial.tut4.philo1.Place;
 import pithreads.framework.Choice;
 import pithreads.framework.InputTask;
 import pithreads.framework.PiChannel;
