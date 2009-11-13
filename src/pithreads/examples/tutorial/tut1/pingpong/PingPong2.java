@@ -1,4 +1,4 @@
-package pithreads.examples.tut1.pingpong;
+package pithreads.examples.tutorial.tut1.pingpong;
 
 import pithreads.framework.PiAgent;
 import pithreads.framework.PiChannel;
