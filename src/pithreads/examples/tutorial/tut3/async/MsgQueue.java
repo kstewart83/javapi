@@ -1,4 +1,4 @@
-package pithreads.examples.tut3.async;
+package pithreads.examples.tutorial.tut3.async;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
