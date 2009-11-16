@@ -1,6 +1,5 @@
 package pithreads.framework;
 
-import java.io.BufferedOutputStream;
 import java.io.PrintStream;
 import java.util.HashSet;
 import java.util.Set;
@@ -132,7 +131,7 @@ public class PiAgent extends Thread {
 	}
 	
 	private void processRegisterEvent(RegisterEvent event) {
-		PiThread thread = event.getPiThread();
+		PiThread thread = event.getSource();
 		
 		if(thread.getThreadId()!=ID_NOT_ASSIGNED) {
 			thread.assignThreadId(ID_ALREADY_REGISTERED);
@@ -152,11 +151,11 @@ public class PiAgent extends Thread {
 	}
 	
 	private void processUnregisterEvent(UnregisterEvent event) {
-		if(piThreads.remove(event.getPiThread().getThreadId())==null)
+		if(piThreads.remove(event.getSource().getThreadId())==null)
 			throw new IllegalArgumentException("PiThread not registered");
-		waitThreads.remove(event.getPiThread().getThreadId());
-		event.getPiThread().assignThreadId(ID_NOT_ASSIGNED);
-		log("Thread unregistered : " + event.getPiThread().getName());
+		waitThreads.remove(event.getSource().getThreadId());
+		event.getSource().assignThreadId(ID_NOT_ASSIGNED);
+		log("Thread unregistered : " + event.getSource().getName());
 	}
 	
 	private void processNewEvent(NewEvent event) {
@@ -186,7 +185,7 @@ public class PiAgent extends Thread {
 	}
 	
 	private void processWaitEvent(WaitEvent event) {
-		waitThreads.add(event.getPiThread().getThreadId());
+		waitThreads.add(event.getSource().getThreadId());
 	}
 
 	private void processAwakeEvent(AwakeEvent event) {

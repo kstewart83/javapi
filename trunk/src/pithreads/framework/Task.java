@@ -34,6 +34,16 @@ public abstract class Task {
 	}
 	
 	/**
+	 * Create a new named channel private to the thread executing the task.
+	 * @param <T> The type of the data conveyed by the channel
+	 * @param name The name of the channel (for debugging purpose)
+	 * @return a new private channel.
+	 */
+	public final <T> PiChannel<T> newChannel(String name) {
+		return new PiChannel<T>(thread.getAgent(), thread, name);
+	}
+	
+	/**
 	 * Synchronize and receive a value on the specified channel
 	 * @param <T> the type of the value to receive
 	 * @param channel the channel used for communication
@@ -150,10 +160,8 @@ public abstract class Task {
 		return thread;
 	}
 	
-	/*
-	 * Public but should be protected in framework and debug packages
-	 */
-	public  final void execute(PiThread thread) throws RunException {
+	// XXX: is this needed ?
+	protected final void execute(PiThread thread) throws RunException {
 		this.thread = thread;
 		body();
 		this.thread=null;
