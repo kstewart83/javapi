@@ -12,7 +12,7 @@ public class DaemonPiThread extends PiThread {
 		super(agent);
 	}
 	
-	/* package */ void waitForCommitment() throws RunException {
+	protected void waitForCommitment() throws RunException {
 		// block until awaken
 		// this version does not send event
 		try {

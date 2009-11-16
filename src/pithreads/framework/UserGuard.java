@@ -1,11 +1,9 @@
 package pithreads.framework;
 
-public abstract class UserGuard extends Guard {
+public class UserGuard extends Guard {
 	
-	protected UserGuard(int index) {
-		super(Type.USER,index);
+	public UserGuard(int index, GuardExpression guardExpr) {
+		super(Type.USER,index, guardExpr);
 	}
 	
-	public abstract boolean enable();
-
 }
