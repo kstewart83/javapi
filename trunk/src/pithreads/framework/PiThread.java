@@ -221,7 +221,7 @@ public class PiThread extends Thread {
 		enabledGuardIndex = index;
 	}
 	
-	/* package */ void waitForCommitment() throws RunException {
+	protected void waitForCommitment() throws RunException {
 		// block until awaken
 		try {
 			sendEvent(new WaitEvent(this));
@@ -346,19 +346,19 @@ public class PiThread extends Thread {
 		}
 	}
 	
-	protected  <T> boolean sendOrCommit(PiChannel<T> channel, T value, int guardIndex) throws RunException {
+	protected  <T> PiThread sendOrCommit(PiChannel<T> channel, T value, int guardIndex) throws RunException {
 		while(true) {
 			// first look for an output commitment
 			InputCommitment input = channel.searchInputCommitment();
 			if(input==null) {
 				channel.addOutputCommitment(new OutputCommitment(this,channel.getId(),turn,guardIndex,value));
-				return false;
+				return null;
 			} else {
 				// now awake the receiver
 				PiThread receiver = input.getThreadReference();
 				if(receiver!=null && receiver.awake(input,value)) { // the turn of the receiver changes there
 					nextTurn(); // now proceed to the next turn to invalidate the commitments
-					return true;
+					return receiver;
 				}
 			}
 		}
@@ -367,8 +367,8 @@ public class PiThread extends Thread {
 
 	/* package */  <T> void send(PiChannel<T> channel, T value) throws RunException {
 		channel.acquire(this);
-		boolean sent = sendOrCommit(channel, value, -1);
-		if(!sent) {
+		PiThread receiver = sendOrCommit(channel, value, -1);
+		if(receiver==null) {
 			// ko no synchronization is possible
 			channel.release(this);
 			waitForCommitment();
@@ -420,28 +420,31 @@ public class PiThread extends Thread {
 		// second phase, try to enable the choice, or deposit some commitment
 		for(int i=0;i<guards.size();i++) {
 			Guard guard = guards.get(i);
+			boolean check = guard.checkGuard();
+			if(!check) {
+				continue; // skip this guard
+			}
 			switch(guard.getType()) {
 			case INPUT:
-				Object val = receiveOrCommit(guard.asInputGuard().getChannel(), i);
-				if(val!=null) {
-					receivedValue = val;
+				Pair<?,?> valueAndSender = receiveOrCommit(guard.asInputGuard().getChannel(), i);
+				if(valueAndSender!=null) {
+					receivedValue = valueAndSender.getFirst();
 					releaseAllChannels(acquiredChannels);
 					return guard;
 				}
 				break;
 			case OUTPUT:
-				boolean sent = sendOrCommit(guard.asOutputGuard().getChannel(),guard.asOutputGuard().getValue(), i);
-				if(sent) {
+				PiThread receiver = sendOrCommit(guard.asOutputGuard().getChannel(),guard.asOutputGuard().getValue(), i);
+				if(receiver!=null) {
 					releaseAllChannels(acquiredChannels);
 					return guard;
 				}
 				break;
-			case USER:
-				boolean enabled = guard.asUserGuard().enable();
-				if(enabled) {
+			case USER: // the check has already been done			
 					releaseAllChannels(acquiredChannels);
 					return guard;
-				}
+			default:
+					throw new Error("Unsupported guard type: "+guard.getType());
 			}
 		}
 		
@@ -503,8 +506,10 @@ public class PiThread extends Thread {
 	}
 	
 	
+	@SuppressWarnings("unchecked")
 	/* package */ <T> Pair<T,Boolean> tryReceive(PiChannel<T> channel) throws RunException{
 		T value=null;
+		
 		channel.acquire(this);
 		
 		OutputCommitment output = channel.searchOutputCommitment();

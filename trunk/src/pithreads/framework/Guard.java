@@ -15,9 +15,16 @@ public abstract class Guard {
 	private final Type type;
 	private final int index;
 	
-	protected Guard(Type type, int index) {
+	private final GuardExpression guardExpr;
+	
+	protected Guard(Type type, int index, GuardExpression guardExpr) {
 		this.type = type;
 		this.index = index;
+		this.guardExpr = guardExpr;
+	}
+	
+	protected Guard(Type type, int index) {
+		this(type,index,TrueGuard.getSingleton());
 	}
 	
 	public Type getType() {
@@ -28,10 +35,16 @@ public abstract class Guard {
 		return index;
 	}
 	
+	public boolean checkGuard() {
+		return guardExpr.check();
+	}
+	
+	@SuppressWarnings("unchecked")
 	public <T> InputGuard<T> asInputGuard() {
 		return (InputGuard<T>) this;
 	}
 	
+	@SuppressWarnings("unchecked")
 	public <T> OutputGuard<T> asOutputGuard() {
 		return (OutputGuard<T>) this;
 	}
