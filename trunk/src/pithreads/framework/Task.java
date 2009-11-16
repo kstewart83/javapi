@@ -43,6 +43,10 @@ public abstract class Task {
 		return new PiChannel<T>(thread.getAgent(), thread, name);
 	}
 	
+	public final PiThread spawn(String name) {
+		
+	}
+	
 	/**
 	 * Synchronize and receive a value on the specified channel
 	 * @param <T> the type of the value to receive

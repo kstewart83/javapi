@@ -38,7 +38,7 @@ public class PiThread extends Thread {
 	private Deque<Task> tasks;
 	protected ImmediateLock immediateLock;
 	protected Object receivedValue;
-	private int enabledGuardIndex;
+	protected int enabledGuardIndex;
 	private AtomicBoolean awakeLock;
 	private volatile boolean terminateFlag;
 		

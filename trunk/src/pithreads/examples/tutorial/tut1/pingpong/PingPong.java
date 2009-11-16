@@ -33,14 +33,14 @@ public class PingPong extends Task {
 		PiFactory factory = new PiFactory(false); // no termination detection, no debugging
 		PiAgent agent = factory.createAgent();
 		
-		final PiChannel<String> ping = new PiChannel<String>(agent,"ping");
-		PiChannel<String> pong = new PiChannel<String>(agent,"pong");
+		final PiChannel<String> ping = factory.createChannel("ping");
+		PiChannel<String> pong = factory.createChannel("pong");
 		
-		PiThread pinger = new PiThread(agent,"pinger");
+		PiThread pinger = factory.createThread("pinger");
 		pinger.assignTask(new PingPong(ping,pong,"<<PING>>"));
 		pinger.start();
 		
-		PiThread ponger = new PiThread(agent,"ponger");
+		PiThread ponger = factory.createThread("ponger");
 		ponger.assignTask(new PingPong(pong,ping,"<<PONG>>"));
 		ponger.start();
 		
