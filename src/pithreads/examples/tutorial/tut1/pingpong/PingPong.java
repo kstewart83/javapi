@@ -2,6 +2,7 @@ package pithreads.examples.tutorial.tut1.pingpong;
 
 import pithreads.framework.PiAgent;
 import pithreads.framework.PiChannel;
+import pithreads.framework.PiFactory;
 import pithreads.framework.PiThread;
 import pithreads.framework.RunException;
 import pithreads.framework.Task;
@@ -29,7 +30,8 @@ public class PingPong extends Task {
 
 	
 	public static void main(String... args) {
-		PiAgent agent = new PiAgent();
+		PiFactory factory = new PiFactory(false); // no termination detection, no debugging
+		PiAgent agent = factory.createAgent();
 		
 		final PiChannel<String> ping = new PiChannel<String>(agent,"ping");
 		PiChannel<String> pong = new PiChannel<String>(agent,"pong");

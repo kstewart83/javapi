@@ -5,9 +5,6 @@ import java.util.Iterator;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-
-import pithreads.framework.commit.InputCommitment;
-import pithreads.framework.commit.OutputCommitment;
 import pithreads.framework.event.NewEvent;
 import pithreads.framework.event.ReclaimEvent;
 
@@ -53,11 +50,11 @@ public class PiChannel<T>  implements Comparable<PiChannel<T>> {
 	 * @param agent the manager agent
 	 * @param name the name of the channel (for debugging purpose)
 	 */
-	public PiChannel(PiAgent agent, String name) {
+	/* package */ PiChannel(PiAgent agent, PiThread thread, String name) {
 		this.agent = agent;
 		id = -1;
 		try {
-			agent.receiveEvent(new NewEvent(this));
+			agent.receiveEvent(new NewEvent(thread,this));
 		} catch(InterruptedException e) {
 			Error error = new Error("Agent interrupted");
 			error.initCause(e);
@@ -82,7 +79,7 @@ public class PiChannel<T>  implements Comparable<PiChannel<T>> {
 		owner = null; // no owner
 		nbOwners = 0;
 	}
-
+	
 	/** Invariant check
 	 * 
 	 */
@@ -92,15 +89,7 @@ public class PiChannel<T>  implements Comparable<PiChannel<T>> {
 		
 		// TODO: no matching input/output commitments
 	}
-	
-	/**
-	 * Create a new channel (default name)
-	 * @param agent 
-	 */
-	public PiChannel(PiAgent agent) {
-		this(agent,null);
-	}
-	
+		
 	/* package */ void assignId(int id) {
 		System.out.println("assign id = "+id);
 		this.id = id;
@@ -166,8 +155,14 @@ public class PiChannel<T>  implements Comparable<PiChannel<T>> {
 			reclaim();
 	}
 	
+	@Override
+	protected void finalize() throws Throwable {		
+		super.finalize();
+		reclaim();
+	}
+	
 	/* package */ void reclaim() throws InterruptedException {
-		agent.receiveEvent(new ReclaimEvent(this));
+		agent.receiveEvent(new ReclaimEvent(null,this)); // global context
 		// should be released in Java also
 	}
 	

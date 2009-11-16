@@ -9,13 +9,10 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import pithreads.framework.commit.Commitment;
-import pithreads.framework.commit.InputCommitment;
-import pithreads.framework.commit.OutputCommitment;
 import pithreads.framework.event.AwakeEvent;
 import pithreads.framework.event.ControlEvent;
+import pithreads.framework.event.LogEvent;
 import pithreads.framework.event.RegisterEvent;
-import pithreads.framework.event.ThreadLogEvent;
 import pithreads.framework.event.UnregisterEvent;
 import pithreads.framework.event.WaitEvent;
 import pithreads.framework.utils.ImmediateLock;
@@ -36,11 +33,11 @@ import pithreads.framework.utils.Pair;
  *
  */
 public class PiThread extends Thread {
-	private final PiAgent agent;
+	protected final PiAgent agent;
 	private volatile int id;
 	private Deque<Task> tasks;
-	private ImmediateLock immediateLock;
-	private Object receivedValue;
+	protected ImmediateLock immediateLock;
+	protected Object receivedValue;
 	private int enabledGuardIndex;
 	private AtomicBoolean awakeLock;
 	private volatile boolean terminateFlag;
@@ -68,7 +65,7 @@ public class PiThread extends Thread {
 		awakeLock = new AtomicBoolean(false);
 		terminateFlag = false;
 		try {
-			sendEvent(new RegisterEvent(this));
+			agent.receiveEvent(new RegisterEvent(this));
 		} catch (InterruptedException e) {
 			Error error = new Error("Thread interrupted: "+e.getMessage());
 			error.initCause(e);
@@ -87,6 +84,10 @@ public class PiThread extends Thread {
 	 */
 	/* package */ PiThread(PiAgent agent) {
 		this(agent,"thread"+(genNameSuffix++));
+	}
+	
+	public PiAgent getAgent() {
+		return agent;
 	}
 	
 	/**
@@ -141,7 +142,7 @@ public class PiThread extends Thread {
 	/**
 	 * Increments the local turn
 	 */
-	private synchronized void nextTurn() {
+	protected synchronized void nextTurn() {
 		if(turn==Long.MAX_VALUE) {
 			// should cleanup all commitments
 			// (maybe sending a blocking event to the agent ?)
@@ -157,25 +158,22 @@ public class PiThread extends Thread {
 		this.id = id;
 	}
 	
+	protected void sendEvent(ControlEvent event) throws RunException {
+		try {
+			agent.receiveEvent(event);
+		} catch (InterruptedException e) {
+			RunException re = new RunException("Cannot send event to agent (Thread interrupted)");
+			re.initCause(e);
+			throw re;
+		}		
+	}
+	
 	/**
 	 * Log a message for the agent
 	 * @param message
 	 */
 	protected  void log(String message) throws RunException {
-		try {
-			agent.receiveEvent(new ThreadLogEvent(this,message));
-		} catch (InterruptedException e) {
-			RunException re = new RunException("Thread interrupted: "+message);
-			re.initCause(e);
-			throw re;
-		}
-	}
-	
-	/*
-	 * Public but should be protected in framework and debug packages
-	 */
-	private void sendEvent(ControlEvent event) throws InterruptedException {
-		agent.receiveEvent(event);
+		sendEvent(new LogEvent(this,message));
 	}
 	
 	@Override
@@ -202,11 +200,11 @@ public class PiThread extends Thread {
 		}
 		
 		try {
-			agent.receiveEvent(new UnregisterEvent(this));
-		} catch(InterruptedException e) {
-			Error error = new Error("Thread interrupted: "+e.getMessage());
-			error.initCause(e);
-			throw error;			
+			sendEvent(new UnregisterEvent(this));
+		} catch (RunException e) {
+			Error err = new Error("PiThreads runtime exception");
+			err.initCause(e);
+			throw err;
 		}
 		
 	}
@@ -233,7 +231,7 @@ public class PiThread extends Thread {
 			}
 			sendEvent(new AwakeEvent(this));
 		} catch(InterruptedException e) {
-			RunException re = new RunException("Thread interrupted");
+			RunException re = new RunException("Cannot acquire lock: thread interrupted");
 			re.initCause(e);
 			throw re;
 		}
@@ -254,7 +252,7 @@ public class PiThread extends Thread {
 		return true;
 	}
 	
-	private  boolean awake(Commitment commit, Object val) throws RunException {
+	protected  boolean awake(Commitment commit, Object val) throws RunException {
 		// XXX: we need a lock to avoid a situation when 2 threads awake
 		// the same thread
 		// such a situation can occur in the case of a choice, a typical example is :
@@ -310,7 +308,8 @@ public class PiThread extends Thread {
 	}
 	
 
-	protected <T> T receiveOrCommit(PiChannel<T> channel, int guardIndex) throws RunException {
+	@SuppressWarnings("unchecked")
+	protected <T> Pair<T,PiThread> receiveOrCommit(PiChannel<T> channel, int guardIndex) throws RunException {
 		while(true) { // need to restart asking if got an invalid commitment
 			// first look for an output commitment
 			OutputCommitment output = channel.searchOutputCommitment();
@@ -323,7 +322,7 @@ public class PiThread extends Thread {
 				PiThread sender = output.getThreadReference();							
 				if(sender!=null && sender.awake(output,null)) {
 					nextTurn(); // invalidate the commitments
-					return (T) output.getValue();
+					return new Pair<T,PiThread>((T) output.getValue(),sender);
 				}
 			}
 		}
@@ -331,22 +330,23 @@ public class PiThread extends Thread {
 
 	/* package */ <T> T receive(PiChannel<T> channel) throws RunException {
 		channel.acquire(this);
-		T value = receiveOrCommit(channel,-1);
-		if(value==null) {
+		Pair<T,PiThread> valueAndSender = receiveOrCommit(channel,-1);
+		if(valueAndSender==null) {
+			// ko no value received (commitment)
 			channel.release(this);
 			waitForCommitment();
-			value = (T) receivedValue;
+			@SuppressWarnings("unchecked")
+			T value = (T) receivedValue;
 			receivedValue = null;
 			return value;
 		} else {
+			// ok a value has been received (synchronization)
 			channel.release(this);
-			return value;
+			return valueAndSender.getFirst();
 		}
 	}
 	
-
-	/* package */  <T> boolean sendOrCommit(PiChannel<T> channel, T value, int guardIndex) throws RunException {
-		
+	protected  <T> boolean sendOrCommit(PiChannel<T> channel, T value, int guardIndex) throws RunException {
 		while(true) {
 			// first look for an output commitment
 			InputCommitment input = channel.searchInputCommitment();
@@ -369,10 +369,12 @@ public class PiThread extends Thread {
 		channel.acquire(this);
 		boolean sent = sendOrCommit(channel, value, -1);
 		if(!sent) {
+			// ko no synchronization is possible
 			channel.release(this);
 			waitForCommitment();
 			return;
 		} else {
+			// ok a synchronization took place
 			channel.release(this);
 			return;
 		}
