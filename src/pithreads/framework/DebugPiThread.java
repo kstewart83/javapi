@@ -10,11 +10,18 @@ import java.util.TreeSet;
 import pithreads.framework.event.debug.GuardEvent;
 import pithreads.framework.event.debug.ReceiveEvent;
 import pithreads.framework.event.debug.SendEvent;
+import pithreads.framework.event.debug.SilentEvent;
 import pithreads.framework.event.debug.SyncEvent;
 import pithreads.framework.utils.Pair;
 
-
-
+/**
+ * This is an implementation of the PiThread with debugging support.
+ * Upon each observable action a debugging event is generated.
+ * This allows to reproduce the interacting behavior of the PiThread.
+ * 
+ * @author F. Peschanski
+ *
+ */
 public class DebugPiThread extends PiThread {
 
 	/* package */ DebugPiThread(PiAgent agent, String name) {
@@ -108,9 +115,9 @@ public class DebugPiThread extends PiThread {
 			gevents.add(new GuardEvent(this,guard,check));
 			switch(guard.getType()) {
 			case INPUT:
-				Pair<?,?> valueAndSender = receiveOrCommit(guard.asInputGuard().getChannel(), i);
+				Pair<?,PiThread> valueAndSender = receiveOrCommit(guard.asInputGuard().getChannel(), i);
 				if(valueAndSender!=null) {
-					sendEvent(new SyncEvent<?>(this,valueAndSender.getSecond(),this,guard.asInputGuard().getChannel(),valueAndSender.getFirst(),i));
+					sendEvent((SyncEvent<?>) new SyncEvent<Object>(this,valueAndSender.getSecond(),this,guard.asInputGuard().getChannel(),valueAndSender.getFirst(),i));
 					receivedValue = valueAndSender.getFirst();
 					releaseAllChannels(acquiredChannels);
 					return guard;
@@ -119,16 +126,22 @@ public class DebugPiThread extends PiThread {
 			case OUTPUT:
 				PiThread receiver = sendOrCommit(guard.asOutputGuard().getChannel(),guard.asOutputGuard().getValue(), i);
 				if(receiver!=null) {
+					sendEvent((SyncEvent<?>) new SyncEvent<Object>(this,this,receiver,guard.asOutputGuard().getChannel(),guard.asOutputGuard().getValue(),i));
 					releaseAllChannels(acquiredChannels);
 					return guard;
 				}
 				break;
-			case USER: // the check has already been done			
+			case USER: // the check has already been done
+					sendEvent(new SilentEvent(this,i));
 					releaseAllChannels(acquiredChannels);
 					return guard;
 			default:
 					throw new Error("Unsupported guard type: "+guard.getType());
 			}
+		}
+		
+		for(GuardEvent gevent: gevents) {
+			sendEvent(gevent);
 		}
 		
 		// third phase : block until the choice gets enabled		

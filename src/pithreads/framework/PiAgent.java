@@ -55,6 +55,7 @@ public class PiAgent extends Thread {
 	private PrintStream logStream;
 	private PrintStream debugStream;
 	private final boolean terminationDetector;
+	private final boolean debugMode;
 	
 	public static final int ID_NOT_ASSIGNED = -1;
 	public static final int ID_ALREADY_REGISTERED = -2;
