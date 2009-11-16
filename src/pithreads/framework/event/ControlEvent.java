@@ -1,7 +1,5 @@
 package pithreads.framework.event;
 
-import java.util.EventObject;
-
 import pithreads.framework.PiThread;
 
 /**
@@ -15,18 +13,17 @@ import pithreads.framework.PiThread;
  * @author Frederic Peschanski
  * 
  */
-public abstract class ControlEvent extends EventObject {
-	private static final long serialVersionUID = -4605970832989343301L;
-	private final long time;
+public abstract class ControlEvent {
+	private final long time;	
+	private PiThread source;
 	
 	protected ControlEvent(PiThread source) {
-		super(source);
 		time = System.currentTimeMillis();
+		this.source = source;
 	}
 	
-	@Override
 	public PiThread getSource() {
-		return (PiThread) super.getSource();
+		return source;
 	}
 
 	public long getTime() {
