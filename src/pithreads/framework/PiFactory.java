@@ -61,22 +61,14 @@ public class PiFactory {
 	 * @param agent The agent used for the factory.
 	 * @param debugMode if true the Pi-thread components will run with debugging support
 	 */
-	public PiFactory(PiAgent agent, boolean debugMode) {
+	public PiFactory(PiAgent agent) {
 		this.agent = agent;
 		terminationDetector = agent.detectTermination();
-		this.debugMode = debugMode;
+		this.debugMode = agent.debugMode();
 		logStream = null;
 		debugStream = null;
 	}
-	
-	/**
-	 * Create a new factory for Pi-Threads using an existing agent without debugging.
-	 * @param agent The agent used for the factory.
-	 */
-	public PiFactory(PiAgent agent) {
-		this(agent,false);
-	}
-
+		
 	/**
 	 * Create a new Pi-thread agent with default name.
 	 * @return a newly created agent.
@@ -86,7 +78,7 @@ public class PiFactory {
 		if(agent!=null) {
 			throw new IllegalStateException("Agent already created");
 		}
-		agent = new PiAgent(terminationDetector, logStream, debugStream);
+		agent = new PiAgent(terminationDetector, debugMode, logStream, debugStream);
 		return agent;		
 	}
 	
@@ -100,7 +92,7 @@ public class PiFactory {
 		if(agent!=null) {
 			throw new IllegalStateException("Agent already created");
 		}
-		agent = new PiAgent(name, terminationDetector, logStream, debugStream);
+		agent = new PiAgent(name, terminationDetector, debugMode, logStream, debugStream);
 		return agent;
 	}
 	
@@ -110,7 +102,7 @@ public class PiFactory {
 	 * @return a newly created Pi-Thread
 	 */
 	public PiThread createThread(String name) {
-		if(agent!=null) {
+		if(agent==null) {
 			throw new IllegalStateException("Agent not created");
 		}
 		if(debugMode) {
@@ -129,7 +121,7 @@ public class PiFactory {
 	}
 
 	public PiThread createThread() {
-		if(agent!=null) {
+		if(agent==null) {
 			throw new IllegalStateException("Agent not created");
 		}
 		if(debugMode) {
@@ -155,7 +147,7 @@ public class PiFactory {
 	 * @return a newly created global channel.
 	 */
 	public <T> PiChannel<T> createChannel(String name) {
-		if(agent!=null) {
+		if(agent==null) {
 			throw new IllegalStateException("Agent not created");
 		}		
 		return new PiChannel<T>(agent,null,name);

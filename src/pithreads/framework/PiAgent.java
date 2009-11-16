@@ -16,6 +16,7 @@ import pithreads.framework.event.ReclaimEvent;
 import pithreads.framework.event.RegisterEvent;
 import pithreads.framework.event.UnregisterEvent;
 import pithreads.framework.event.WaitEvent;
+import pithreads.framework.event.debug.DebugEvent;
 
 /**
  * 
@@ -66,15 +67,15 @@ public class PiAgent extends Thread {
 	/**
 	 * Create a Pi-agent (default name)
 	 */
-	/* package */ PiAgent(boolean terminationDetector, PrintStream logStream, PrintStream debugStream) {
-		this("agent"+(genId++), terminationDetector, logStream, debugStream);
+	/* package */ PiAgent(boolean terminationDetector, boolean debugMode, PrintStream logStream, PrintStream debugStream) {
+		this("agent"+(genId++), terminationDetector, debugMode, logStream, debugStream);
 	}
 	
 	/**
 	 * Create a named Pi-agent
 	 * @param name the name of the Pi-agent
 	 */
-	/* package */ PiAgent(String name, boolean terminationDetector, PrintStream logStream, PrintStream debugStream) {
+	/* package */ PiAgent(String name, boolean terminationDetector, boolean debugMode, PrintStream logStream, PrintStream debugStream) {
 		super("agent"+(genId++));
 		eventQueue = new LinkedBlockingDeque<ControlEvent>(QUEUE_CAPACITY);
 		piThreads = new TreeMap<Integer,PiThread>();
@@ -87,12 +88,16 @@ public class PiAgent extends Thread {
 		this.terminationDetector = terminationDetector;
 		this.logStream = logStream;
 		this.debugStream = debugStream;
-		
+		this.debugMode = debugMode;
 		start();
 	}
 
 	public boolean detectTermination() {
 		return terminationDetector;
+	}
+	
+	public boolean debugMode() {
+		return debugMode;
 	}
 	
 	/**
@@ -193,6 +198,15 @@ public class PiAgent extends Thread {
 		waitThreads.remove(event.getPiThread().getThreadId());
 	}
 	
+	private void processDebugEvent(DebugEvent event) {
+		if(!debugMode) {
+			throw new IllegalStateException("Agent does not support debugging");
+		}
+		synchronized(debugStream) {
+			debugStream.append(event.toString());
+		}
+	}
+	
 	private void processLogEvent(LogEvent event) {
 		synchronized(logStream) {
 			StringBuffer buf = new StringBuffer();
@@ -238,6 +252,8 @@ public class PiAgent extends Thread {
 			processWaitEvent((WaitEvent) event);
 		} else if(event instanceof AwakeEvent) {
 			processAwakeEvent((AwakeEvent) event);
+		} else if(event instanceof DebugEvent) {
+			processDebugEvent((DebugEvent) event);
 		} else {
 			throw new IllegalArgumentException("Does not understand event: "+event);
 		}

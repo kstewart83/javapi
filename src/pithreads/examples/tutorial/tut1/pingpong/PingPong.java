@@ -44,7 +44,7 @@ public class PingPong extends Task {
 		ponger.assignTask(new PingPong(pong,ping,"<<PONG>>"));
 		ponger.start();
 		
-		PiThread init = new PiThread(agent,"init");
+		PiThread init = factory.createThread("init");
 		init.assignTask(new Task() {
 			@Override
 			public void body() throws RunException {

@@ -39,12 +39,17 @@ public abstract class Task {
 	 * @param name The name of the channel (for debugging purpose)
 	 * @return a new private channel.
 	 */
-	public final <T> PiChannel<T> newChannel(String name) {
+	protected final <T> PiChannel<T> newChannel(String name) {
 		return new PiChannel<T>(thread.getAgent(), thread, name);
 	}
 	
-	public final PiThread spawn(String name) {
-		
+	/**
+	 * Create a new named PiThread.
+	 * @param name The name of the spawned PiThread
+	 * @return a new PiThread
+	 */
+	protected final PiThread spawn(String name) {
+		return new PiThread(thread.getAgent(),name);
 	}
 	
 	/**
@@ -54,8 +59,7 @@ public abstract class Task {
 	 * @return the value received
 	 * @throws RunException if a runtime exception occurs
 	 */
-	// public should be protected
-	public final <T> T receive(PiChannel<T> channel) throws RunException {
+	protected final <T> T receive(PiChannel<T> channel) throws RunException {
 		return thread.receive(channel);
 	}
 
@@ -66,8 +70,7 @@ public abstract class Task {
 	 * @param value the value to send
 	 * @throws RunException if a runtime exception occurs
 	 */
-	//	 public should be protected
-	public final <T> void send(PiChannel<T> channel, T value) throws RunException {
+	protected final <T> void send(PiChannel<T> channel, T value) throws RunException {
 		thread.send(channel, value);
 	}
 	
@@ -78,7 +81,7 @@ public abstract class Task {
 	 * @throws RunException if a runtime exception occurs
 	 */
 	//	 public should be protected
-	public final Guard choose(Choice choice) throws RunException {
+	protected final Guard choose(Choice choice) throws RunException {
 		return choice.enact(getPiThread());
 	}
 	
@@ -87,7 +90,7 @@ public abstract class Task {
 	 * @param message the message to log
 	 */
 	//	 public should be protected
-	public final void log(String message) throws RunException {
+	protected final void log(String message) throws RunException {
 		thread.log(message);
 	}
 	
@@ -95,8 +98,7 @@ public abstract class Task {
 	 * A shortcut for printing on the standard output
 	 * @param str the string to print
 	 */
-	//	 public should be protected
-	public final void print(String str) {
+	protected final void print(String str) {
 		System.out.print("["+thread.getName()+"] ");
 		System.out.print(str);
 	}
@@ -106,8 +108,7 @@ public abstract class Task {
 	 * Prints a newline at the end.
 	 * @param str the string to print
 	 */
-	//	 public should be protected
-	public final void println(String str) {
+	protected final void println(String str) {
 		print(str);
 		System.out.println();
 	}
@@ -115,8 +116,7 @@ public abstract class Task {
 	/**
 	 * A shortcut for printing a newline on the standard output
 	 */
-	//	 public should be protected
-	public final void println() {
+	protected final void println() {
 		System.out.println();
 	}
 
@@ -124,8 +124,7 @@ public abstract class Task {
 	 * A shortcut for printing on the standard error output
 	 * @param str the string to print
 	 */
-	//	 public should be protected
-	public final void err(String str) {
+	protected final void err(String str) {
 		System.err.print("["+thread.getName()+"] ");
 		System.err.print(str);
 	}
@@ -135,8 +134,7 @@ public abstract class Task {
 	 * Prints a newline at the end.
 	 * @param str the string to print
 	 */
-	//	 public should be protected
-	public final void errln(String str) {
+	protected final void errln(String str) {
 		err(str);
 		System.err.println();
 	}
@@ -144,8 +142,7 @@ public abstract class Task {
 	/**
 	 * A shortcut for printing a newline on the standard error output
 	 */
-	//	 public should be protected
-	public final void errln() {
+	protected final void errln() {
 		System.err.println();		
 	}
 
@@ -160,7 +157,7 @@ public abstract class Task {
 	 * Get the Pi-thread actually running this task
 	 * @return the refernce of the Pi-thread or null if the task is not currently executed
 	 */
-	public final PiThread getPiThread() {
+	protected final PiThread getPiThread() {
 		return thread;
 	}
 	
