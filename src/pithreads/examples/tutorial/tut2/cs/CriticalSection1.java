@@ -2,6 +2,7 @@ package pithreads.examples.tutorial.tut2.cs;
 
 import pithreads.framework.PiAgent;
 import pithreads.framework.PiChannel;
+import pithreads.framework.PiFactory;
 import pithreads.framework.PiThread;
 import pithreads.framework.RunException;
 import pithreads.framework.Task;
@@ -16,26 +17,27 @@ public class CriticalSection1 {
 			nb_procs = Integer.parseInt(args[0]);
 		}
 		
-		PiAgent agent = new PiAgent();
+		PiFactory factory = new PiFactory(true);
+		PiAgent agent = factory.createAgent();
 		
 		// create the observer thread
-		final PiChannel<Integer> obs = new PiChannel<Integer>(agent,"obs");
-		PiThread observer = new PiThread(agent,"Observer");
+		final PiChannel<Integer> obs = factory.createChannel("obs");
+		PiThread observer = factory.createThread("Observer");
 		observer.assignTask(new ObserverTask(obs));
 		
 		observer.start();
 
 		// create the critical section threads
-		final PiChannel<PiChannel<Integer>> lock = new PiChannel<PiChannel<Integer>>(agent,"lock");
+		final PiChannel<PiChannel<Integer>> lock = factory.createChannel("lock");
 
 		for(int i=1;i<=nb_procs;i++) {
-			PiThread cs = new PiThread(agent,"cs"+i);
+			PiThread cs = factory.createThread("cs"+i);
 			cs.assignTask(new CSTask(i,lock));
 			cs.start();
 		}
 
 		// create the init process
-		PiThread init = new PiThread(agent,"init");
+		PiThread init = factory.createThread("init");
 		init.assignTask(new Task() {
 			@Override
 			public void body() throws RunException {

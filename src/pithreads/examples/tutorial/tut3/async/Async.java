@@ -2,6 +2,7 @@ package pithreads.examples.tutorial.tut3.async;
 
 import pithreads.framework.PiAgent;
 import pithreads.framework.PiChannel;
+import pithreads.framework.PiFactory;
 import pithreads.framework.PiThread;
 
 public class Async {
@@ -47,25 +48,26 @@ public class Async {
 		}
 		
 		// Create the agent
-		PiAgent agent = new PiAgent("async");
+		PiFactory factory = new PiFactory(true);
+		PiAgent agent = factory.createAgent("async");
 		
 		// Create the channels
-		PiChannel<String> put = new PiChannel<String>(agent,"put");
-		PiChannel<String> take = new PiChannel<String>(agent,"take");
+		PiChannel<String> put = factory.createChannel("put");
+		PiChannel<String> take = factory.createChannel("take");
 		
 		// spawn the threads
-		PiThread msgQueue = new PiThread(agent,"msgQueue");
+		PiThread msgQueue = factory.createThread("msgQueue");
 		msgQueue.assignTask(new MsgQueue<String>(put,take,CAPACITY));
 		msgQueue.start();
 		
 		for(int i=1;i<=NWRITERS;i++) {
-			PiThread writer = new PiThread(agent,"writer"+i);
+			PiThread writer = factory.createThread("writer"+i);
 			writer.assignTask(new Writer(put,"<BEEP>",NWRITES));
 			writer.start();
 		}
 		
 		for(int i=1;i<=NREADERS;i++) {
-			PiThread reader = new PiThread(agent,"reader"+i);
+			PiThread reader = factory.createThread("reader"+i);
 			reader.assignTask(new Reader(take));
 			reader.start();
 		}

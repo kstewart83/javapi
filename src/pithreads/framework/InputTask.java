@@ -19,6 +19,6 @@ public abstract class InputTask<T> extends Task {
 		body(receivedValue);
 	}
 	
-	public abstract void body(T receivedValue);
+	public abstract void body(T receivedValue) throws RunException;
 	
 }
