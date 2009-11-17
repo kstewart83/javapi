@@ -2,6 +2,7 @@ package pithreads.examples.tutorial.tut1.pingpong;
 
 import pithreads.framework.PiAgent;
 import pithreads.framework.PiChannel;
+import pithreads.framework.PiFactory;
 import pithreads.framework.PiThread;
 import pithreads.framework.RunException;
 import pithreads.framework.Task;
@@ -31,20 +32,21 @@ public class PingPong2 extends Task {
 
 	
 	public static void main(String... args) {
-		PiAgent agent = new PiAgent();
+		PiFactory factory = new PiFactory(true); // with termination detection
+		PiAgent agent = factory.createAgent();
 		
-		final PiChannel<Pair<String,Integer>> ping = new PiChannel<Pair<String,Integer>>(agent,"ping");
-		PiChannel<Pair<String,Integer>> pong = new PiChannel<Pair<String,Integer>>(agent,"pong");
+		final PiChannel<Pair<String,Integer>> ping = factory.createChannel("ping");
+		PiChannel<Pair<String,Integer>> pong = factory.createChannel("pong");
 		
-		PiThread pinger = new PiThread(agent,"pinger");
+		PiThread pinger = factory.createThread("pinger");
 		pinger.assignTask(new PingPong2(ping,pong,"<<PING>>"));
 		pinger.start();
 		
-		PiThread ponger = new PiThread(agent,"ponger");
+		PiThread ponger = factory.createThread("ponger");
 		ponger.assignTask(new PingPong2(pong,ping,"<<PONG>>"));
 		ponger.start();
 		
-		PiThread init = new PiThread(agent,"init");
+		PiThread init = factory.createThread("init");
 		init.assignTask(new Task() {
 			@Override
 			public void body() throws RunException {

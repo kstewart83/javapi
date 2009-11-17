@@ -37,7 +37,7 @@ public class ChoosingPhilosopher extends Task{
 		takeFork2=place.getFork2().getPiChannel();
 		choice.addInput(takeFork1, new InputTask<Integer>() {
 			@Override
-			public void body(Integer receivedValue) {
+			public void body(Integer receivedValue) throws RunException {
 				
 				receivedValue=1;
 				first=takeFork1;
@@ -49,7 +49,7 @@ public class ChoosingPhilosopher extends Task{
 		});
 		choice.addInput(takeFork2, new InputTask<Integer>() {
 			@Override
-			public void body(Integer receivedValue) {
+			public void body(Integer receivedValue) throws RunException {
 			
 				receivedValue=1;
 				first=takeFork2;
@@ -67,7 +67,7 @@ public class ChoosingPhilosopher extends Task{
 		
 		choice.addInput(second, new InputTask<Integer>() {
 			@Override
-			public void body(Integer receivedValue) {
+			public void body(Integer receivedValue) throws RunException {
 				log("takes second fork");
 				aquired=true;
 				
