@@ -20,7 +20,6 @@ public class PingPong extends Task {
 	
 	@Override
 	public void body() throws RunException {
-		log("Started");
 		while(true) {
 			String msg = receive(input);
 			log("Received "+msg);
