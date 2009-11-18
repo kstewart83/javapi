@@ -29,7 +29,7 @@ public class Init extends Task{
 		}
 		PiThread clock = new PiThread(this.getPiThread().agent, "clock");
 		Clock taskClock=new Clock(register,tick,barrier,nbReg,ttl);
-		clock.assignTask(taskClock);
+		clock.assign(taskClock);
 		clock.start();
 	}
 }

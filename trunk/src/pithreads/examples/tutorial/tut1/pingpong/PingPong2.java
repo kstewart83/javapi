@@ -39,15 +39,15 @@ public class PingPong2 extends Task {
 		PiChannel<Pair<String,Integer>> pong = factory.createChannel("pong");
 		
 		PiThread pinger = factory.createThread("pinger");
-		pinger.assignTask(new PingPong2(ping,pong,"<<PING>>"));
+		pinger.assign(new PingPong2(ping,pong,"<<PING>>"));
 		pinger.start();
 		
 		PiThread ponger = factory.createThread("ponger");
-		ponger.assignTask(new PingPong2(pong,ping,"<<PONG>>"));
+		ponger.assign(new PingPong2(pong,ping,"<<PONG>>"));
 		ponger.start();
 		
 		PiThread init = factory.createThread("init");
-		init.assignTask(new Task() {
+		init.assign(new Task() {
 			@Override
 			public void body() throws RunException {
 				send(ping,new Pair<String,Integer>("<<INIT>>", 100));

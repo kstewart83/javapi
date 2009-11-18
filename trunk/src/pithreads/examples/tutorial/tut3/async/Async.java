@@ -57,18 +57,18 @@ public class Async {
 		
 		// spawn the threads
 		PiThread msgQueue = factory.createThread("msgQueue");
-		msgQueue.assignTask(new MsgQueue<String>(put,take,CAPACITY));
+		msgQueue.assign(new MsgQueue<String>(put,take,CAPACITY));
 		msgQueue.start();
 		
 		for(int i=1;i<=NWRITERS;i++) {
 			PiThread writer = factory.createThread("writer"+i);
-			writer.assignTask(new Writer(put,"<BEEP>",NWRITES));
+			writer.assign(new Writer(put,"<BEEP>",NWRITES));
 			writer.start();
 		}
 		
 		for(int i=1;i<=NREADERS;i++) {
 			PiThread reader = factory.createThread("reader"+i);
-			reader.assignTask(new Reader(take));
+			reader.assign(new Reader(take));
 			reader.start();
 		}
 		

@@ -95,7 +95,7 @@ public class PiThread extends Thread {
 	 * the specified task will be executed after the current one. 
 	 * @param task the task to execute
 	 */
-	public synchronized void assignTask(Task task) {
+	public synchronized void assign(Task task) {
 		tasks.addLast(task);
 	}
 
