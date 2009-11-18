@@ -29,7 +29,7 @@ public class DayJobBroadcast {
 				public void body() throws RunException {
 					log(" working");
 				}},i);
-			worker.assignTask(task2);
+			worker.assign(task2);
 			worker.start();
 		}
 		
@@ -40,7 +40,7 @@ public class DayJobBroadcast {
 			}});
 		
 		ClockBroadcast taskClock=new ClockBroadcast(tick,0,TIMETOLIVE);
-		clock.assignTask(taskClock);
+		clock.assign(taskClock);
 		clock.start();
 		
 		agent.detach();

@@ -23,7 +23,7 @@ public class Dinner {
 			PiThread fork = factory.createThread("fork"+i);
 			Fork oneFork = new Fork(take,i);
 			couverts.add(oneFork);
-			fork.assignTask(oneFork);
+			fork.assign(oneFork);
 			fork.start();
 		}
 		
@@ -35,21 +35,21 @@ public class Dinner {
 			PiThread plate = factory.createThread("plate"+i);
 			Plate onePlate = new Plate(eat,QUANTITY);
 			plates.add(onePlate);
-			plate.assignTask(onePlate);
+			plate.assign(onePlate);
 			plate.start();
 			
 			//PiChannel<Place> seat =  new PiChannel<Place>(agent,"seat"+i);
 			PiThread chair = factory.createThread("chair"+i);
 			PiChannel<Boolean>  leave = factory.createChannel("leave"+i);
 			Place place = new Place(couverts.get(i),couverts.get((i+1)%NBRES),plates.get(i),leave);
-			chair.assignTask(new Chair(place,seat));
+			chair.assign(new Chair(place,seat));
 			pichTab.add(seat);
 			chair.start();
 		}
 		
 		for(int i =0;i<NBPHILO;i++){
 			PiThread philo = factory.createThread("philo"+i);
-			philo.assignTask(new Philosopher(seat));//pichTab.get(i)
+			philo.assign(new Philosopher(seat));//pichTab.get(i)
 			philo.start();
 		}
 		

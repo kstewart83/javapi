@@ -24,7 +24,7 @@ public class PollingBooth2 {
 		for(int i = 0;i<NBVOTERS;i++){
 			PiThreadBroadcast voter = myFactory.newPiThreadBroadcast(agent, "voter#"+i);
 			Voter2 taskVoter =  new Voter2(vote,i);
-			voter.assignTask(taskVoter);
+			voter.assign(taskVoter);
 			voter.start();
 		}
 		
@@ -42,7 +42,7 @@ public class PollingBooth2 {
 		};
 		PiThreadBroadcast coordinator = myFactory.newPiThreadBroadcast(agent,"coordinator"); 
 		Coordinator2 taskCoordinator = new Coordinator2(vote,TURNS,ifYes,ifNo);
-		coordinator.assignTask(taskCoordinator);
+		coordinator.assign(taskCoordinator);
 		coordinator.start();
 		agent.detach();
 	}

@@ -28,7 +28,7 @@ public class DayJobAtomicBroadcast {
 				public void body() throws RunException {
 					log(" working");
 				}},i);
-			worker.assignTask(task2);
+			worker.assign(task2);
 			worker.start();
 		}
 		
@@ -39,7 +39,7 @@ public class DayJobAtomicBroadcast {
 			}});
 		
 		ClockAtomicBroadcast taskClock=new ClockAtomicBroadcast(tick,0,TIMETOLIVE);
-		clock.assignTask(taskClock);
+		clock.assign(taskClock);
 		clock.start();
 		
 		//PiThread init = myFactory.newPiThread(agent, "init",new Init(register,tick,barrier,NBWORKERS,TIMETOLIVE,clock));

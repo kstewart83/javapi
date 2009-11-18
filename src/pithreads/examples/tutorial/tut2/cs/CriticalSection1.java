@@ -23,7 +23,7 @@ public class CriticalSection1 {
 		// create the observer thread
 		final PiChannel<Integer> obs = factory.createChannel("obs");
 		PiThread observer = factory.createThread("Observer");
-		observer.assignTask(new ObserverTask(obs));
+		observer.assign(new ObserverTask(obs));
 		
 		observer.start();
 
@@ -32,13 +32,13 @@ public class CriticalSection1 {
 
 		for(int i=1;i<=nb_procs;i++) {
 			PiThread cs = factory.createThread("cs"+i);
-			cs.assignTask(new CSTask(i,lock));
+			cs.assign(new CSTask(i,lock));
 			cs.start();
 		}
 
 		// create the init process
 		PiThread init = factory.createThread("init");
-		init.assignTask(new Task() {
+		init.assign(new Task() {
 			@Override
 			public void body() throws RunException {
 				send(lock,obs);
