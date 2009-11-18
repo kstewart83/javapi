@@ -266,11 +266,13 @@ public class PiAgent extends Thread {
 			try {
 				//System.out.println("AGENT: next event = ");
 				ControlEvent event = null;
-				event = eventQueue.pollLast(1, TimeUnit.SECONDS); // wait for an event
+				event = eventQueue.pollLast(250, TimeUnit.MILLISECONDS); // wait for an event
 				//System.out.println("AGENT: process event = "+event);
 				if(event!=null) {
 					processEvent(event);
 				}
+				
+				//log("Remaining threads = "+piThreads.size());
 				
 				if(terminationDetector && waitThreads.size() == piThreads.values().size() && eventQueue.size()==0 && !initialSequence) {
 					/* Termination detection is started
