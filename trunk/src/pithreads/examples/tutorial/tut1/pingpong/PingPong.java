@@ -44,14 +44,13 @@ public class PingPong extends Task {
 		ponger.assign(new PingPong(pong,ping,"<<PONG>>"));
 		ponger.start();
 		
-		PiThread init = factory.createThread("init");
-		init.assign(new Task() {
-			@Override
-			public void body() throws RunException {
-				send(ping,"<<INIT>>");
-			}			
-		});
-		init.start();
+		factory.createThread("init")
+			.assign(new Task() {
+				@Override
+				public void body() throws RunException {
+					send(ping,"<<INIT>>");
+				}			
+			}).start();
 		
 		agent.detach();
 	}

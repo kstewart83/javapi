@@ -42,8 +42,7 @@ public class PiThread extends Thread {
 	private AtomicBoolean awakeLock;
 	private volatile boolean terminateFlag;
 		
-	//public should be protected
-	public volatile long turn; // need a volatile value so than any change is
+	private volatile long turn; // need a volatile value so than any change is
 	                            // immediately globally visible
 	
 	private static int genNameSuffix = 0;
@@ -95,8 +94,9 @@ public class PiThread extends Thread {
 	 * the specified task will be executed after the current one. 
 	 * @param task the task to execute
 	 */
-	public synchronized void assign(Task task) {
+	public synchronized PiThread assign(Task task) {
 		tasks.addLast(task);
+		return this;
 	}
 
 	
