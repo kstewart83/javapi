@@ -274,7 +274,7 @@ public class PiAgent extends Thread {
 				
 				//log("Remaining threads = "+piThreads.size());
 				
-				if(terminationDetector && waitThreads.size() == piThreads.values().size() && eventQueue.size()==0 && !initialSequence) {
+				if(terminationDetector && waitThreads.size() == piThreads.size() && eventQueue.size()==0 && !initialSequence) {
 					/* Termination detection is started
 					 * look for all threads we know are waiting
 					 * (deposited commitments)

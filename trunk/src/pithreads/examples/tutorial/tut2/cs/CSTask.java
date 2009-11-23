@@ -25,7 +25,9 @@ public class CSTask extends Task {
 		/* SECTION */
 		log("Leaving critical section");
 		send(lock,fbk);
+		
 		/* then dies */		
+		log("Should die");
 	}
 	
 }
