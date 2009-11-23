@@ -38,13 +38,10 @@ public class MsgQueue<T> extends Task {
 				return queue.removeLast();
 			}		
 		}, new Task() {
-
 			@Override
 			public void body() throws RunException {
-				// TODO Auto-generated method stub
-				
-			}
-			
+				// Do nothing				
+			}			
 		});
 		
 		return choice;

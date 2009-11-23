@@ -24,26 +24,15 @@ import pithreads.framework.event.ReclaimEvent;
  * @param <T> the type of the data passing through the channel
  */
 public class PiChannel<T>  implements Comparable<PiChannel<T>> {
-	//public should be protected
-	public Set<InputCommitment> inCommits;
-	//public should be protected
-	public Set<OutputCommitment> outCommits;
-	//public should be protected
-	public int refCount;
-	//public should be protected
-	public final String name;
-	//public should be protected
-	public volatile int id;
-	//public should be protected
-	public PiAgent agent;
-	
-	//public should be protected
-	public AtomicBoolean acquired;
-	//public should be protected
-	public Thread owner;
-	
-	//public should be protected
-	public int nbOwners;
+	private CommitNode<InputCommitment> inCommitNode;
+	private CommitNode<OutputCommitment> outCommitNode;
+	private final String name;
+	private volatile int id;
+	private PiAgent agent;
+		
+	private AtomicBoolean acquired;
+	private Thread owner;	
+	private int nbOwners;
 	
 	/**
 	 * Create a new named channel
@@ -72,9 +61,9 @@ public class PiChannel<T>  implements Comparable<PiChannel<T>> {
 		} else {
 			this.name = name;
 		}
-		refCount=0;
-		inCommits = new HashSet<InputCommitment>();
-		outCommits = new HashSet<OutputCommitment>();
+		
+		inCommitNode = new CommitNode<InputCommitment>();
+		outCommitNode = new CommitNode<OutputCommitment>();		
 		acquired = new AtomicBoolean(false); // not acquired by default
 		owner = null; // no owner
 		nbOwners = 0;
@@ -142,19 +131,7 @@ public class PiChannel<T>  implements Comparable<PiChannel<T>> {
 			throw new RunEngineException("Invalid owners count for channel");
 		acquired.set(false);		
 	}
-	
-	/* package */ void reference() {
-		if(refCount>=0)
-			refCount++;
-	}
-	
-	/* package */ void dereference() throws InterruptedException {
-		if(refCount>0)
-			refCount--;
-		if(refCount==0)
-			reclaim();
-	}
-	
+		
 	@Override
 	protected void finalize() throws Throwable {		
 		super.finalize();
@@ -163,95 +140,112 @@ public class PiChannel<T>  implements Comparable<PiChannel<T>> {
 	
 	/* package */ void reclaim() throws InterruptedException {
 		agent.receiveEvent(new ReclaimEvent(null,this)); // global context
-		// should be released in Java also
 	}
 	
-	/*
-	 * Public but should be protected in framework and debug packages
-	 */
-	public  void addInputCommitment(InputCommitment input) {
-		inCommits.add(input);
+	/* package */  void addInputCommitment(InputCommitment input) {
+		inCommitNode.insertBefore(input);
 	}
 	
-	/*
-	 * Public but should be protected in framework and debug packages
-	 */
-	public  void addOutputCommitment(OutputCommitment output) {
-		outCommits.add(output);
+	/* package */  void addOutputCommitment(OutputCommitment output) {
+		outCommitNode.insertBefore(output);
 	}
 
-	/*
-	 * Public but should be protected in framework and debug packages
-	 */
-	public  Set<PiThread> getWaitingThreads() {
+	/* package */  Set<PiThread> getWaitingThreads() {
 		Set<PiThread> waitingThreads = new HashSet<PiThread>();
-		for(OutputCommitment commit : outCommits) {
-			if(commit.isValid()) {
-				PiThread pithread = commit.getThreadReference();
-				if(pithread!=null)
-					waitingThreads.add(pithread);
-			}
+		
+		// browse the output commitment
+		CommitNode<OutputCommitment> ocommit = outCommitNode;
+		if(ocommit.getContent()!=null) {
+			do {
+				if(ocommit.getContent().isValid()) {
+					PiThread pithread = ocommit.getContent().getThreadReference();
+					if(pithread!=null) {
+						waitingThreads.add(pithread);
+						ocommit = ocommit.getNext();					
+					} else {
+						ocommit = ocommit.remove(); // cleanup because invalid
+					}
+				} else {
+					ocommit = ocommit.remove(); // cleanup because invalid
+				}
+			} while (ocommit!=outCommitNode);
 		}
-		for(InputCommitment commit : inCommits) {
-			if(commit.isValid()) {
-				PiThread pithread = commit.getThreadReference();
-				if(pithread!=null)
-					waitingThreads.add(pithread);
-			}
+		
+		// browse the input commitment
+		CommitNode<InputCommitment> icommit = inCommitNode;
+		if(icommit.getContent()!=null) {
+			do {
+				if(icommit.getContent().isValid()) {
+					PiThread pithread = icommit.getContent().getThreadReference();
+					if(pithread!=null) {
+						waitingThreads.add(pithread);
+						icommit = icommit.getNext();					
+					} else {
+						icommit = icommit.remove(); // cleanup because invalid
+					}
+				} else {
+					icommit = icommit.remove(); // cleanup because invalid
+				}
+			} while(icommit!=inCommitNode);
 		}
+
 		return waitingThreads;
 	}
 	
-	/*
-	 * Public but should be protected in framework and debug packages
-	 */
-	public  void cleanup() {
-		Iterator<OutputCommitment> iter = outCommits.iterator(); 
-		while(iter.hasNext()) {
-			OutputCommitment output = iter.next();
-			if(!output.isValid()) {
-				iter.remove(); // invalid commitment
-			}
+	/* package */  void cleanup() {
+		// browse the output commitment
+		CommitNode<OutputCommitment> ocommit = outCommitNode;
+		if(ocommit.getContent()!=null) {
+			do {
+				if(ocommit.getContent().isValid()) {
+					PiThread pithread = ocommit.getContent().getThreadReference();
+					if(pithread!=null) {						
+						ocommit = ocommit.getNext();					
+					} else {
+						ocommit = ocommit.remove(); // cleanup because invalid
+					}
+				} else {
+					ocommit = ocommit.remove(); // cleanup because invalid
+				}
+			} while(ocommit!=outCommitNode);
 		}
-		Iterator<InputCommitment> iter2 = inCommits.iterator(); 
-		while(iter2.hasNext()) {
-			InputCommitment input = iter2.next();
-			if(!input.isValid()) {
-				iter2.remove(); // invalid commitment
-			}
+		
+		// browse the input commitment
+		CommitNode<InputCommitment> icommit = inCommitNode;
+		if(icommit.getContent()!=null) {
+			do {
+				if(icommit.getContent().isValid()) {
+					PiThread pithread = icommit.getContent().getThreadReference();
+					if(pithread!=null) {
+						icommit = icommit.getNext();					
+					} else {
+						icommit = icommit.remove(); // cleanup because invalid
+					}
+				} else {
+					icommit = icommit.remove(); // cleanup because invalid
+				}
+			} while(icommit!=inCommitNode);
 		}
 	}
 	
-	/*
-	 * Public but should be protected in framework and debug packages
-	 */
-	public  OutputCommitment searchOutputCommitment() {
-		Iterator<OutputCommitment> iter = outCommits.iterator(); 
-		while(iter.hasNext()) {
-			OutputCommitment output = iter.next();
-			if(output.isValid()) {
-				return output;
-			} else {
-				iter.remove(); // invalid commitment
-			}
+	/* package */ OutputCommitment searchOutputCommitment() {
+		CommitNode<OutputCommitment> found = outCommitNode.search();
+		if(found==null) {
+			return null;
+		} else {
+			outCommitNode = found;
+			return found.getContent();
 		}
-		return null; // no output commitment found
 	}
 	
-	/*
-	 * Public but should be protected in framework and debug packages
-	 */
-	public  InputCommitment searchInputCommitment() {
-		Iterator<InputCommitment> iter = inCommits.iterator(); 
-		while(iter.hasNext()) {
-			InputCommitment input = iter.next();
-			if(input.isValid()) {
-				return input;
-			} else {
-				iter.remove(); // invalid commitment
-			}
+	/* package */  InputCommitment searchInputCommitment() {
+		CommitNode<InputCommitment> found = inCommitNode.search();
+		if(found==null) {
+			return null;
+		} else {
+			inCommitNode = found;
+			return found.getContent();
 		}
-		return null; // no input commitment found
 	}
 	
 	@Override
@@ -280,8 +274,110 @@ public class PiChannel<T>  implements Comparable<PiChannel<T>> {
 		else if(id>o.id)
 			return 1; 
 			else return 0;
-	}
-	
+	}	
 
 	
+}
+
+/* package */ class CommitNode<T extends Commitment> {
+	private T commit;
+	private CommitNode<T> prev;
+	private CommitNode<T> next;
+
+	public CommitNode() {
+		this.commit = null;
+		prev = null;
+		next = null;
+	}
+	
+	public boolean isEmpty() {
+		return commit==null;
+	}
+	
+	/* package */ CommitNode<T> getPrev() {
+		return prev;
+	}
+	
+	/* package */ void setPrev(CommitNode<T> prev) {
+		this.prev = prev;
+	}
+
+	/* package */ CommitNode<T> getNext() {
+		return next;
+	}
+
+	/* package */ void setNext(CommitNode<T> next) {
+		this.next = next;
+	}
+
+	/* package */ T getContent() {
+		return commit;
+	}
+	
+	/* package */ void setContent(T commit) {
+		this.commit = commit;
+	}
+	
+	/* package */ CommitNode<T> search() {
+		if(commit==null) {
+			return null;
+		} else if(prev==this) {
+			if(commit.isValid()) {
+				return this;
+			} else {
+				return remove();
+			}
+		}
+		CommitNode<T> found = this;
+		while(true) {
+			if(found.getContent().isValid()) {
+				return found;
+			} else {
+				found = found.remove();
+			}
+		}
+	}
+	
+	/* package */ CommitNode<T> insertBefore(T newCommit) {
+		if(commit==null) {
+			commit=newCommit;
+			prev = this;
+			next = this;
+			return this;
+		} else if(prev==this) {
+			if(next!=this) {
+				throw new IllegalStateException("Single-node list is not circular");
+			}
+			CommitNode<T> newNode = new CommitNode<T>();
+			setPrev(newNode);
+			setNext(newNode);
+			newNode.setPrev(this);
+			newNode.setNext(this);
+			return newNode;
+		} else { // general case
+			CommitNode<T> newNode = new CommitNode<T>();
+			prev.setNext(newNode);
+			newNode.setPrev(prev.getPrev());
+			setPrev(newNode);
+			newNode.setNext(this);
+			return newNode;
+		}		
+	}
+	
+	/* package */ CommitNode<T> remove() {
+		if(commit==null) {
+			throw new Error("Cannot remove empty commitment node");
+		} else if(prev==this) {
+			setContent(null); // last link
+			return this;
+		} else if(prev==next) { 
+			prev.setNext(prev);
+			prev.setPrev(prev);
+			return prev;
+		} else { // general case
+			prev.setNext(next);
+			next.setPrev(next);
+			return next;
+		}
+	}
 }

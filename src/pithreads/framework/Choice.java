@@ -32,8 +32,8 @@ public class Choice {
 	/**
 	 * Add an input guard and corresponding task to this choice.
 	 * @param <T> the type of the value to receive
-	 * @param chan the channel used for synchronization/input
-	 * @param task the task to execute upon reception
+	 * @param chan The channel used for synchronization/input
+	 * @param task The task to execute upon reception
 	 */
 	public <T> void addInput(PiChannel<T> chan, InputTask<T> task) {
 		choiceGuards.add(new InputGuard<T>(chan,choiceGuards.size()));
@@ -45,7 +45,7 @@ public class Choice {
 	 * Add an output guard and corresponding task to this choice.
 	 * @param <T> the type of the value to send
 	 * @param chan the channel used for synchronization/output
-	 * @param maker the value maker for this output (on-demand value creation)
+	 * @param maker The value maker for this output (on-demand value creation)
 	 * @param task the task to execute upon emission
 	 */
 	public <T> void addOutput(PiChannel<T> chan, ValueMaker<T> maker, Task task) {
