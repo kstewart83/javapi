@@ -120,8 +120,8 @@ public class PiAgent extends Thread {
 	
 	
 	private synchronized int generateId(int startId, Set<Integer> assignedIDs) {
-		int count = 0;
-		int id = startId;
+		//int count = 0;
+		//int id = startId;
 		
 		/*while(count<=Integer.MAX_VALUE) {
 			if(!assignedIDs.contains(id)) {
@@ -283,8 +283,7 @@ public class PiAgent extends Thread {
 					Set<PiThread> waitingThreads = new HashSet<PiThread>();
 					for(PiChannel<?> chan : piChannels.values()) {
 						chan.acquire(this);
-						chan.cleanup();
-						waitingThreads.addAll(chan.getWaitingThreads());
+						waitingThreads.addAll(chan.cleanup());
 					}
 
 					for(PiChannel<?> chan : piChannels.values()) {
