@@ -194,6 +194,7 @@ public class PiChannel<T>  implements Comparable<PiChannel<T>> {
 	}
 	
 	private <U extends Commitment> Commitment searchValidCommitment(CircularList<U> list) {
+		//System.out.println("Search valid commitments: "+list);
 		int remaining = list.getSize();
 		while(remaining>0) {
 			Commitment commit = list.getElement();
