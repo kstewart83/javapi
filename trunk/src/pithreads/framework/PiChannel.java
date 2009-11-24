@@ -6,6 +6,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import pithreads.framework.event.NewEvent;
 import pithreads.framework.event.ReclaimEvent;
+import pithreads.framework.utils.CircularList;
 
 /**
  * 
@@ -23,8 +24,8 @@ import pithreads.framework.event.ReclaimEvent;
  * @param <T> the type of the data passing through the channel
  */
 public class PiChannel<T>  implements Comparable<PiChannel<T>> {
-	private CommitNode<InputCommitment> inCommitNode;
-	private CommitNode<OutputCommitment> outCommitNode;
+	private CircularList<InputCommitment> inCommits;
+	private CircularList<OutputCommitment> outCommits;
 	private final String name;
 	private volatile int id;
 	private PiAgent agent;
@@ -61,8 +62,9 @@ public class PiChannel<T>  implements Comparable<PiChannel<T>> {
 			this.name = name;
 		}
 		
-		inCommitNode = new CommitNode<InputCommitment>();
-		outCommitNode = new CommitNode<OutputCommitment>();		
+		inCommits = new CircularList<InputCommitment>();
+		outCommits = new CircularList<OutputCommitment>();
+		
 		acquired = new AtomicBoolean(false); // not acquired by default
 		owner = null; // no owner
 		nbOwners = 0;
@@ -142,142 +144,75 @@ public class PiChannel<T>  implements Comparable<PiChannel<T>> {
 	}
 	
 	/* package */  void addInputCommitment(InputCommitment input) {
-		inCommitNode.insertBefore(input);
+		inCommits.insertBefore(input);
 	}
 	
 	/* package */  void addOutputCommitment(OutputCommitment output) {
-		outCommitNode.insertBefore(output);
+		outCommits.insertBefore(output);
 	}
 
-	/* package */  Set<PiThread> getWaitingThreads() {		
+	/* package */  Set<PiThread> cleanup() {		
 		Set<PiThread> waitingThreads = new HashSet<PiThread>();
-		// browse the output commitment
-		while(true) {
-			CommitNode<OutputCommitment> ocommit = outCommitNode;
-			if(ocommit.getContent()==null) {
-				break;
-			} else if(ocommit.getContent().isValid()) {
-				PiThread pithread = ocommit.getContent().getThreadReference();
+
+		// browse the output commitments
+		int remaining = outCommits.getSize();
+		while(remaining>0) {
+			OutputCommitment outCommit = outCommits.getElement();
+			if(outCommit.isValid()) {
+				PiThread pithread = outCommit.getThreadReference();
 				if(pithread!=null) {
 					waitingThreads.add(pithread);
-					outCommitNode = ocommit.getNext();
-					if(outCommitNode==ocommit) {
-						break;
-					}
+					outCommits.next();
 				} else {
-					outCommitNode = ocommit.remove(); // cleanup because invalid						
-					if(outCommitNode==ocommit) {
-						break;
-					}
+					outCommits.remove();
 				}
 			} else {
-				outCommitNode = ocommit.remove(); // cleanup because invalid
-				if(outCommitNode==ocommit) {
-					break;
-				}
+				outCommits.remove();
 			}
+			remaining--;
 		}
 		
-		// browse the input commitment
-		while(true) {
-			CommitNode<InputCommitment> icommit = inCommitNode;
-			if(icommit.getContent()==null) {
-				return waitingThreads;
-			} else if(icommit.getContent().isValid()) {
-				PiThread pithread = icommit.getContent().getThreadReference();
-				if(pithread!=null) {						
+		// browse the input commitments
+		remaining = inCommits.getSize();
+		while(remaining>0) {
+			InputCommitment inCommit = inCommits.getElement();
+			if(inCommit.isValid()) {
+				PiThread pithread = inCommit.getThreadReference();
+				if(pithread!=null) {
 					waitingThreads.add(pithread);
-					inCommitNode = icommit.getNext();
-					if(inCommitNode==icommit) {
-						return waitingThreads;
-					}
+					inCommits.next();
 				} else {
-					inCommitNode = icommit.remove(); // cleanup because invalid						
-					if(inCommitNode==icommit) {
-						return waitingThreads;
-					}
+					inCommits.remove();
 				}
 			} else {
-				inCommitNode = icommit.remove(); // cleanup because invalid
-				if(inCommitNode==icommit) {
-					return waitingThreads;
-				}
+				inCommits.remove();
 			}
+			remaining--;
 		}
+		
+		return waitingThreads;
 	}
 	
-	/* package */  void cleanup() {
-		// browse the output commitment
-		while(true) {
-			CommitNode<OutputCommitment> ocommit = outCommitNode;
-			if(ocommit.getContent()==null) {
-				break;
-			} else if(ocommit.getContent().isValid()) {
-				PiThread pithread = ocommit.getContent().getThreadReference();
-				if(pithread!=null) {						
-					outCommitNode = ocommit.getNext();
-					if(outCommitNode==ocommit) {
-						break;
-					}
-				} else {
-					outCommitNode = ocommit.remove(); // cleanup because invalid						
-					if(outCommitNode==ocommit) {
-						break;
-					}
-				}
+	private <U extends Commitment> Commitment searchValidCommitment(CircularList<U> list) {
+		int remaining = list.getSize();
+		while(remaining>0) {
+			Commitment commit = list.getElement();
+			if(commit.isValid()) {
+				return commit;
 			} else {
-				outCommitNode = ocommit.remove(); // cleanup because invalid
-				if(outCommitNode==ocommit) {
-					break;
-				}
+				list.remove();
+				remaining--;
 			}
 		}
-		
-		// browse the input commitment
-		while(true) {
-			CommitNode<InputCommitment> icommit = inCommitNode;
-			if(icommit.getContent()==null) {
-				return;
-			} else if(icommit.getContent().isValid()) {
-				PiThread pithread = icommit.getContent().getThreadReference();
-				if(pithread!=null) {						
-					inCommitNode = icommit.getNext();
-					if(inCommitNode==icommit) {
-						return;
-					}
-				} else {
-					inCommitNode = icommit.remove(); // cleanup because invalid						
-					if(inCommitNode==icommit) {
-						return;
-					}
-				}
-			} else {
-				inCommitNode = icommit.remove(); // cleanup because invalid
-				if(inCommitNode==icommit) {
-					return;
-				}
-			}
-		}
+		return null;
 	}
 	
 	/* package */ OutputCommitment searchOutputCommitment() {
-		CommitNode<OutputCommitment> found = outCommitNode.search();
-		if(found.getContent()==null) {
-			return null;
-		} else {
-			outCommitNode = found;
-			return found.getContent();
-		}
+		return (OutputCommitment) searchValidCommitment(outCommits);
 	}
 	
 	/* package */  InputCommitment searchInputCommitment() {
-		CommitNode<InputCommitment> found = inCommitNode.search();
-		if(found.getContent()==null) {
-			return null;
-		} else {
-			inCommitNode = found;
-			return found.getContent();
-		}
+		return (InputCommitment) searchValidCommitment(inCommits);
 	}
 	
 	@Override
@@ -311,139 +246,3 @@ public class PiChannel<T>  implements Comparable<PiChannel<T>> {
 	
 }
 
-/* package */ class CommitNode<T extends Commitment> {
-	private T commit;
-	private CommitNode<T> prev;
-	private CommitNode<T> next;
-
-	public CommitNode() {
-		this.commit = null;
-		prev = null;
-		next = null;
-	}
-	
-	public boolean isEmpty() {
-		return commit==null;
-	}
-	
-	/* package */ CommitNode<T> getPrev() {
-		return prev;
-	}
-	
-	/* package */ void setPrev(CommitNode<T> prev) {
-		this.prev = prev;
-	}
-
-	/* package */ CommitNode<T> getNext() {
-		return next;
-	}
-
-	/* package */ void setNext(CommitNode<T> next) {
-		this.next = next;
-	}
-
-	/* package */ T getContent() {
-		return commit;
-	}
-	
-	/* package */ void setContent(T commit) {
-		this.commit = commit;
-	}
-	
-	/* package */ CommitNode<T> search() {
-		if(commit==null) {
-			return this;
-		} else if(prev==this) {
-			if(commit.isValid()) {
-				return this;
-			} else {
-				return remove();
-			}
-		}
-		CommitNode<T> found = this;
-		while(true) {			
-			if(found.getContent().isValid()) {
-				return found;
-			} else {
-				found = found.remove();
-				if(found.getContent()==null) {
-					return found;
-				}
-			}
-		}
-	}
-	
-	/* package */ CommitNode<T> insertBefore(T newCommit) {
-		if(commit==null) {
-			commit=newCommit;
-			prev = this;
-			next = this;
-			return this;
-		} else if(prev==this) {
-			if(next!=this) {
-				throw new IllegalStateException("Single-node list is not circular");
-			}
-			CommitNode<T> newNode = new CommitNode<T>();
-			newNode.setContent(newCommit);
-			setPrev(newNode);
-			setNext(newNode);
-			newNode.setPrev(this);
-			newNode.setNext(this);
-			return newNode;
-		} else { // general case
-			CommitNode<T> newNode = new CommitNode<T>();
-			prev.setNext(newNode);
-			newNode.setPrev(prev.getPrev());
-			setPrev(newNode);
-			newNode.setNext(this);
-			return newNode;
-		}		
-	}
-	
-	/* package */ CommitNode<T> remove() {
-		if(commit==null) {
-			throw new Error("Cannot remove empty commitment node");
-		} else if(prev==this) {
-			setContent(null); // last link
-			return this;
-		} else if(prev==next) { 
-			prev.setNext(prev);
-			prev.setPrev(prev);
-			return prev;
-		} else { // general case
-			prev.setNext(next);
-			next.setPrev(prev);
-			return next;
-		}
-	}
-	
-	@Override
-	public String toString() {
-		StringBuffer buf = new StringBuffer();
-		if(commit==null) {
-			return "<empty>";
-		} else if(prev==this) {
-			buf.append("One[");
-			buf.append(commit);
-			buf.append("]");
-			return buf.toString();
-		} else if(prev==next) {
-			buf.append("Two[");
-			buf.append(commit);
-			buf.append(",");
-			buf.append(next.getContent());
-			buf.append("]");
-			return buf.toString();
-		} else { // general case
-			CommitNode<T> node = this;
-			buf.append("List[");
-			do {
-				buf.append(node.getContent());
-				buf.append("->");
-				node = node.getNext();
-			} while(node!=this);
-			buf.append("*]");
-			return buf.toString();
-		}
-	}
-}
