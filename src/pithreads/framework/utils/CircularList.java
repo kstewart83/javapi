@@ -159,7 +159,7 @@ public class CircularList<T> {
 	}
 	
 	public void insertBefore(T element) {
-		checkInvariant();
+		//checkInvariant();
 		
 		if(element==null) {
 			throw new IllegalArgumentException("Cannot insert <null> in a circular list");
@@ -191,11 +191,11 @@ public class CircularList<T> {
 		}
 		size++;
 
-		checkInvariant();
+		//checkInvariant();
 	}
 	
 	public void insertAfter(T element) {
-		checkInvariant();
+		//checkInvariant();
 
 		if(element==null) {
 			throw new IllegalArgumentException("Cannot insert <null> in a circular list");
@@ -227,11 +227,11 @@ public class CircularList<T> {
 		}
 		size++;
 		
-		checkInvariant();
+		//checkInvariant();
 	}
 	
 	public void remove() {
-		checkInvariant();
+		//checkInvariant();
 
 		if(current.getContent()==null) {
 			throw new IllegalStateException("Cannot remove from empty circular list");
@@ -245,7 +245,7 @@ public class CircularList<T> {
 		}
 		size--;
 		
-		checkInvariant();
+		//checkInvariant();
 	}
 	
 	@Override
