@@ -4,8 +4,51 @@
 
 blabla
 
+= Format basics =
+
+ * option 1 : use the JSon format to encode the traces
+
+ * option 2 : use s-expressions
+
+ * option 3 : use XML
+
 = High-level traces =
 
+ * Spawn a new thread
+{{{
+{  "agentId" : <id> , 
+   "clock" : <val> ,
+   "trace" = { "type" : "Spawn",
+                      "threadName" : <name>,
+                      "threadId" : <tid>,
+                    }
+} 
+}}}
+
+Using s-expressions :
+
+{{{
+(trace 
+   (agentId <id>)
+   (clock <val>)
+   (msg (type spawn)
+             (threadName <name>)
+             (threadId <tid>)))))        
+}}}
+
+Using infix s-expressions :
+
+{{{
+trace {
+  agentId = <id>,
+  clock = <val>,
+  msg {
+     type = spawn,
+     threadName = <name>,
+     threadId = <tid>
+  }
+}
+}}}
 
 
 = Low-level traces =
