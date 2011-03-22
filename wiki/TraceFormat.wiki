@@ -59,7 +59,7 @@ trace {
 
 == Receive a message (blocking) ==
 
-== Synchronization ==
+== Synchronization (simple send/recv case) ==
 
 
 {{{
@@ -74,6 +74,50 @@ trace {
 } 
 }}}
 
+== Choice (blocking) ==
+
+{{{
+{  "agentId" : <id> , 
+   "clock" : <val> ,
+   "trace" = { "type" : "Choice",
+                      "branches" : [
+                          { "guard":  <guard>
+                            "action":  { "type" : "send" ,  <etc...>
+                          }, 
+                         <etc>
+                      ]
+                    }
+} 
+}}}
+
+== Enact choice ==
+
+{{{
+{  "agentId" : <id> , 
+   "clock" : <val> ,
+   "trace" = { "type" : "EnactChoiceSync",
+                      "sender" : { id:<sid>, branch:<int>},
+                      "receiver" : { id:<rid>, branch:<int>},
+                      "chanId" : <cid>,
+                      "data" : <repr> ,
+                    }
+} 
+}}}
+
+ * Internal choice
+
+{{{
+{  "agentId" : <id> , 
+   "clock" : <val> ,
+   "trace" = { "type" : "EnactChoiceInternal",
+                      "thread" : { id:<sid>, branch:<int>},
+                    }
+} 
+}}}
+
+== try Receive ==
+
+== try Send ==
 
 == Log ==
 
