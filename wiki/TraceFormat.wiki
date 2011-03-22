@@ -80,6 +80,7 @@ trace {
 {  "agentId" : <id> , 
    "clock" : <val> ,
    "trace" = { "type" : "Choice",
+                      "strategy" : "localPriority",   // also "random", etc...
                       "branches" : [
                           { "guard":  <guard>
                             "action":  { "type" : "send" ,  <etc...>
