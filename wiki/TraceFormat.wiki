@@ -14,7 +14,8 @@ blabla
 
 = High-level traces =
 
- * Spawn a new thread
+== Spawn a new thread ==
+
 {{{
 {  "agentId" : <id> , 
    "clock" : <val> ,
@@ -49,6 +50,33 @@ trace {
   }
 }
 }}}
+
+
+== Create a new channel ==
+
+== Send a message (blocking) ==
+
+
+== Receive a message (blocking) ==
+
+== Synchronization ==
+
+
+{{{
+{  "agentId" : <id> , 
+   "clock" : <val> ,
+   "trace" = { "type" : "Sync",
+                      "sendId" : <sid>,
+                      "recvId" : <rid>,
+                      "chanId" : <cid>,
+                      "data" : <repr>
+                    }
+} 
+}}}
+
+
+== Log ==
+
 
 
 = Low-level traces =
