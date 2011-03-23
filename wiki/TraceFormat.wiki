@@ -149,10 +149,39 @@ trace {
 
 == try Receive ==
 
+{{{
+{  "agentId" : <id> , 
+   "clock" : <val> ,
+   "trace" = { "type" : "TryReceive",
+                      "Rcvid" : <rid>,
+                      "Chanid"   : <cid>                 
+                    }
+} 
+}}}
+
 == try Send ==
+
+{{{
+{  "agentId" : <id> , 
+   "clock" : <val> ,
+   "trace" = { "type" : "TrySend",
+                      "Sendid" : <sid>,
+                      "Chanid"   : <cid>                 
+                    }
+} 
+}}}
 
 == Log ==
 
+{{{
+{  "agentId" : <id> , 
+   "clock" : <val> ,
+   "trace" = { "type" : "Log",
+                      "Threadid" : <tid>,
+                      "Message"   : <message>                 
+                    }
+} 
+}}}
 
 
 = Low-level traces =
