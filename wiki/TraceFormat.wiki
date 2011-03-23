@@ -107,20 +107,52 @@ trace {
 
 == Choice (blocking) ==
 
+=== Branch format ===
+
+*Input*
+{
+    "guard" : <guard>,
+    "action" : {
+              "type" : "input",
+              "channel" : <cid>,
+              "Data" : <repr>
+    } 
+}
+
+*Output*
+{
+    "guard" : <guard>,
+    "action" : {
+              "type" : "Output",
+              "channel" : <cid>
+    } 
+}
+
+*User* 
+{
+    "guard" : <guard>,
+    "action" : {
+              "type" : "User"
+    } 
+}
+=== Trace ===
 {{{
 {  "agentId" : <id> , 
    "clock" : <val> ,
    "trace" = { "type" : "Choice",
-                      "strategy" : "localPriority",   // also "random", etc...
-                      "branches" : [
-                          { "guard":  <guard>
-                            "action":  { "type" : "send" ,  <etc...>
+               "ThreadId" : <tid>
+               "strategy" : "localPriority",   // also "random", etc...
+               "branches" : [
+                          {
+                            // see above "branch format"
                           }, 
-                         <etc>
+                          
                       ]
                     }
 } 
 }}}
+
+
 
 == Enact choice ==
 
