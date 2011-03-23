@@ -115,7 +115,7 @@ trace {
                "strategy" : "localPriority",   // also "random", etc...
                "branches" : [
                           {
-                            // see above "branch format"
+                            // see "branch format" below 
                           }, 
                           
                       ]
