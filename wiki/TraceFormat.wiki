@@ -110,6 +110,7 @@ trace {
 === Branch format ===
 
 *Input*
+{{{
 {
     "guard" : <guard>,
     "action" : {
@@ -118,8 +119,9 @@ trace {
               "Data" : <repr>
     } 
 }
-
+}}}
 *Output*
+{{{
 {
     "guard" : <guard>,
     "action" : {
@@ -127,14 +129,16 @@ trace {
               "channel" : <cid>
     } 
 }
-
+}}}
 *User* 
+{{{
 {
     "guard" : <guard>,
     "action" : {
               "type" : "User"
     } 
 }
+}}}
 === Trace ===
 {{{
 {  "agentId" : <id> , 
