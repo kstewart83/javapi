@@ -106,7 +106,22 @@ trace {
 }}}
 
 == Choice (blocking) ==
-
+=== Trace ===
+{{{
+{  "agentId" : <id> , 
+   "clock" : <val> ,
+   "trace" = { "type" : "Choice",
+               "ThreadId" : <tid>
+               "strategy" : "localPriority",   // also "random", etc...
+               "branches" : [
+                          {
+                            // see above "branch format"
+                          }, 
+                          
+                      ]
+                    }
+} 
+}}}
 === Branch format ===
 
 *Input*
@@ -139,22 +154,7 @@ trace {
     } 
 }
 }}}
-=== Trace ===
-{{{
-{  "agentId" : <id> , 
-   "clock" : <val> ,
-   "trace" = { "type" : "Choice",
-               "ThreadId" : <tid>
-               "strategy" : "localPriority",   // also "random", etc...
-               "branches" : [
-                          {
-                            // see above "branch format"
-                          }, 
-                          
-                      ]
-                    }
-} 
-}}}
+
 
 
 
