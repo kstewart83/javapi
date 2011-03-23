@@ -54,10 +54,41 @@ trace {
 
 == Create a new channel ==
 
+{{{
+{  "agentId" : <id> , 
+   "clock" : <val> ,
+   "trace" = { "type" : "CreateChannel",
+                      "Chanid" : <cid>,
+                      "Datatype" : <Type>,
+                    }
+} 
+}}}
+
 == Send a message (blocking) ==
 
 
+{{{
+{  "agentId" : <id> , 
+   "clock" : <val> ,
+   "trace" = { "type" : "BlockingSend",
+                      "sendid" : <sid>,
+                      "Chanid"   : <cid>                 
+                    }
+} 
+}}}
+
+
 == Receive a message (blocking) ==
+
+{{{
+{  "agentId" : <id> , 
+   "clock" : <val> ,
+   "trace" = { "type" : "BlockingReceive",
+                      "rdcvid" : <rid>,
+                      "Chanid"   : <cid>                 
+                    }
+} 
+}}}
 
 == Synchronization (simple send/recv case) ==
 
