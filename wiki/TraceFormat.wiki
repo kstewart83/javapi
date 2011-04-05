@@ -2,7 +2,10 @@
 
 = Introduction =
 
-blabla
+Pithreads may be unpredictable and to understand a program using them we need a tool. It should be able to trace all actions performed by every Pithread running. Those traces must respect the format we established here so that the tool can produce an easy to understand logfile.
+
+By the way that tool permits you to track down a bug and to eliminate it. 
+
 
 = Format basics =
 
@@ -221,6 +224,16 @@ trace {
 
 
 = Low-level traces =
+
+{{{
+{  "trace" = { "type" : "CreateAgent",
+               "agentid" : <aid>
+               "agentname" : <agentname>
+            }
+}
+}}}
+
+
 
 = Wiki help =
 
