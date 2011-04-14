@@ -5,13 +5,13 @@ import pithreads.framework.PiThread;
 public class OutputCommitment extends Commitment {
 	private Object value;
 	
-	public OutputCommitment(PiThread thread, int chanId, long turn, Object value) {
-		super(Type.OUTPUT,thread, chanId, turn);
+	public OutputCommitment(PiThread thread, int chanId, ValidFlag validFlag, Object value) {
+		super(Type.OUTPUT,thread, chanId, validFlag);
 		this.value = value;
 	}
 	
-	public OutputCommitment(PiThread thread, int chanId, long turn, int guardIndex, Object value) {
-		super(Type.OUTPUT,thread, chanId, turn, guardIndex);
+	public OutputCommitment(PiThread thread, int chanId, ValidFlag validFlag, int guardIndex, Object value) {
+		super(Type.OUTPUT,thread, chanId, validFlag, guardIndex);
 		this.value = value;
 	}
 

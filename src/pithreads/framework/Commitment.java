@@ -9,7 +9,7 @@ public class Commitment {
 	
 	private final Type type;
 	private final int chanId;
-	private final long turn;
+	private final ValidFlag validFlag;
 	private int guardIndex;
 	
 	private final int commitId;
@@ -18,17 +18,17 @@ public class Commitment {
 	
 	private WeakReference<PiThread> threadRef;
 	
-	protected Commitment(Type type, PiThread thread, int chanId, long turn, int guardIndex) {
+	protected Commitment(Type type, PiThread thread, int chanId, ValidFlag validFlag, int guardIndex) {
 		this.type = type;
 		threadRef = new WeakReference<PiThread>(thread);		
 		this.chanId = chanId;
-		this.turn = turn;
+		this.validFlag = validFlag;
 		commitId = genId++;
 		this.guardIndex = guardIndex;
 	}
 
-	protected Commitment(Type type, PiThread thread, int chanId, long turn) {
-		this(type,thread,chanId,turn,-1); // not a commitment for guard
+	protected Commitment(Type type, PiThread thread, int chanId, ValidFlag validFlag) {
+		this(type,thread,chanId,validFlag,-1); // not a commitment for guard
 	}
 
 	public Type getType() {
@@ -63,15 +63,12 @@ public class Commitment {
 		return chanId;
 	}
 	
-	public long getTurn() {
-		return turn;
+	public ValidFlag getValidFlag() {
+		return validFlag;
 	}
 	
 	public boolean isValid() {
-		PiThread thread = threadRef.get();
-		if(thread==null)
-			return false;
-		return thread.getTurn()==turn;
+		return validFlag.valid;
 	}
 	
 	@Override
