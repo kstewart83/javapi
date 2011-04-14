@@ -42,8 +42,7 @@ public class PiThread extends Thread {
 	private AtomicBoolean awakeLock;
 	private volatile boolean terminateFlag;
 		
-	private volatile long turn; // need a volatile value so than any change is
-	                            // immediately globally visible
+	private ValidFlag validFlag; // for implicit invalidation broadcast
 	
 	private static int genNameSuffix = 0;
 	
@@ -56,7 +55,7 @@ public class PiThread extends Thread {
 		super(name);
 		this.agent = agent;
 		id = -1;
-		turn = 0;
+		validFlag = null;
 		immediateLock = new ImmediateLock(); // 0 permit and not fair (not needed)
 		receivedValue = null;
 		tasks = new ArrayDeque<Task>();
@@ -127,28 +126,6 @@ public class PiThread extends Thread {
 		//return immediateLock.isBlocking();
 	//}
 	
-	/**
-	 * Get the turn count of this Pi-thread.
-	 * This gives an idea of the progression of the execution
-	 * (the count starts at 0) but the main use of the counter
-	 * is for internal purpose. It drives the invalidation of
-	 * process commitments.
-	 * @return a long integer representing the count.
-	 */
-	/* package */ synchronized long getTurn() {
-		return turn;
-	}
-
-	/**
-	 * Increments the local turn
-	 */
-	protected synchronized void nextTurn() {
-		if(turn==Long.MAX_VALUE) {
-			// should cleanup all commitments
-			// (maybe sending a blocking event to the agent ?)
-		}
-		turn++;
-	}
 	
 	/**
 	 * Used by the Agent to assign the thread id upon registration
@@ -246,7 +223,10 @@ public class PiThread extends Thread {
 			awakeLock.set(false);
 			return false;
 		}
-		turn++;
+		ValidFlag flag = validFlag;
+		validFlag = null;
+		if(flag!=null)
+			flag.valid = false;
 		terminateFlag = true;
 		immediateLock.release();
 		return true;
@@ -277,7 +257,7 @@ public class PiThread extends Thread {
 		
 		// here we acquired the lock
 		
-		if(commit.getTurn()!=getTurn()) {
+		if(commit.getValidFlag()!=validFlag) {
 			// the commitment is too old
 			awakeLock.set(false);
 			return false;
@@ -297,8 +277,10 @@ public class PiThread extends Thread {
 		
 		// release the lock
 		//agent.receiveEvent(new ThreadLogEvent(Thread.currentThread(),"Akawing: "+getName()));
-		nextTurn(); // the turn change when awaken
-		
+		ValidFlag flag = validFlag;
+		validFlag = null; // cancels the commitments
+		flag.valid = false;  // broadcast the invalidation
+				
 		// no awake the process
 		immediateLock.release();
 
@@ -314,14 +296,17 @@ public class PiThread extends Thread {
 			// first look for an output commitment
 			OutputCommitment output = channel.searchOutputCommitment();
 			if(output==null) {
-				channel.addInputCommitment(new InputCommitment(this,channel.getId(),turn,guardIndex));
+				if(validFlag!=null) {
+					throw new Error("validFlag should be null (please report)");
+				}
+				validFlag = new ValidFlag();
+				channel.addInputCommitment(new InputCommitment(this,channel.getId(),validFlag,guardIndex));
 				return null;
 			} else {
 				// ok found a commitment
 				// awake the sender
 				PiThread sender = output.getThreadReference();							
 				if(sender!=null && sender.awake(output,null)) {
-					nextTurn(); // invalidate the commitments
 					return new Pair<T,PiThread>((T) output.getValue(),sender);
 				}
 			}
@@ -351,13 +336,16 @@ public class PiThread extends Thread {
 			// first look for an output commitment
 			InputCommitment input = channel.searchInputCommitment();
 			if(input==null) {
-				channel.addOutputCommitment(new OutputCommitment(this,channel.getId(),turn,guardIndex,value));
+				if(validFlag!=null) {
+					throw new Error("validFlag should be null (please report)");
+				}
+				validFlag = new ValidFlag();
+				channel.addOutputCommitment(new OutputCommitment(this,channel.getId(),validFlag,guardIndex,value));
 				return null;
 			} else {
 				// now awake the receiver
 				PiThread receiver = input.getThreadReference();
 				if(receiver!=null && receiver.awake(input,value)) { // the turn of the receiver changes there
-					nextTurn(); // now proceed to the next turn to invalidate the commitments
 					return receiver;
 				}
 			}
@@ -490,7 +478,6 @@ public class PiThread extends Thread {
 			// now awake the receiver
 			PiThread receiver = input.getThreadReference();
 			if(receiver!=null && receiver.awake(input,value)) { // the turn of the receiver changes there
-				nextTurn(); // now proceed to the next turn to invalidate the commitments
 				inputTook = true;
 			}
 		}
@@ -520,7 +507,6 @@ public class PiThread extends Thread {
 			// awake the sender
 			PiThread sender = output.getThreadReference();							
 			if(sender!=null && sender.awake(output,null)) {
-				nextTurn(); // invalidate the commitments
 				value =  (T) output.getValue();
 			}
 		}
