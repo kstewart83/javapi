@@ -3,7 +3,7 @@ package pithreads.framework;
 /**
  * 
  * A specialized task that does ... nothing
- * (may be useful for guaded constructs such as choices)
+ * (may be useful for guarded constructs such as choices)
  * 
  * @author Frederic Peschanski
  *

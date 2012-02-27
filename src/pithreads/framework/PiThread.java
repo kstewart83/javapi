@@ -7,20 +7,14 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.concurrent.atomic.AtomicBoolean;
 
-import pithreads.framework.event.AwakeEvent;
 import pithreads.framework.event.ControlEvent;
 import pithreads.framework.event.LogEvent;
-import pithreads.framework.event.RegisterEvent;
-import pithreads.framework.event.UnregisterEvent;
-import pithreads.framework.event.WaitEvent;
-import pithreads.framework.utils.ImmediateLock;
 import pithreads.framework.utils.Pair;
 
 /**
  * 
- * This class provides the basic implementation of a Pi-thread.
+ * This class provides the basis for implementations of Pi-threads.
  * 
  * A Pi-thread is a plain (Java) Thread with extensions to support the Pi-calculus
  * model of computation.
@@ -32,354 +26,241 @@ import pithreads.framework.utils.Pair;
  * @author Frederic Peschanski
  *
  */
-public class PiThread extends Thread {
-	protected final PiAgent agent;
-	private volatile int id;
-	private Deque<Task> tasks;
-	protected ImmediateLock immediateLock;
-	protected Object receivedValue;
-	protected int enabledGuardIndex;
-	private AtomicBoolean awakeLock;
-	private volatile boolean terminateFlag;
-		
-	private ValidFlag validFlag; // for implicit invalidation broadcast
+public abstract class PiThread extends Thread {
+    private final PiAgent agent;  /** The agent managing the pi-thread. */
+	private Deque<Task> tasks; /** The queue of tasks to execute */
+	private int enabledGuardIndex; /** The last selected guard index (cf. choice protocol). */
+	private Object receivedValue; /** The received value (cf. reception protocol). */
+	private ValidFlag validFlag; /** the object used for the lazy invalidation of outdated commitments. */
 	
-	private static int genNameSuffix = 0;
-	
-	/**
-	 * Creates a new Pi-thread
-	 * @param agent a manager agent
-	 * @param name the name of the process (for debugging purpose)
-	 */	
-	/* package */ PiThread(PiAgent agent, String name) {
+	/** Allocate a named pi-thread.
+	 * @param name the name is mostly used for debugging
+	 */
+	protected PiThread(PiAgent agent, String name) {
 		super(name);
 		this.agent = agent;
-		id = -1;
-		validFlag = null;
-		immediateLock = new ImmediateLock(); // 0 permit and not fair (not needed)
-		receivedValue = null;
 		tasks = new ArrayDeque<Task>();
 		enabledGuardIndex = -1;
-		awakeLock = new AtomicBoolean(false);
-		terminateFlag = false;
-		try {
-			agent.receiveEvent(new RegisterEvent(this));
-		} catch (InterruptedException e) {
-			Error error = new Error("Thread interrupted: "+e.getMessage());
-			error.initCause(e);
-			throw error;
-		}
-		while(id==PiAgent.ID_NOT_ASSIGNED) { yield(); } // wait until the id is set
-		if(id==PiAgent.ID_ALREADY_REGISTERED)
-			throw new Error("Id already registered");
-		if(id==PiAgent.ID_TOO_MANY)
-			throw new Error("Too many threads in agent");
-	}
-	
-	/**
-	 * Creates a new Pi-thread (default name)
-	 * @param agent a manager agent
-	 */
-	/* package */ PiThread(PiAgent agent) {
-		this(agent,"thread"+(genNameSuffix++));
-	}
-	
-	public PiAgent getAgent() {
-		return agent;
-	}
-	
-	/**
-	 * Assigns a task to this Pi-thread. If there is already a running task
-	 * the specified task will be executed after the current one. 
-	 * @param task the task to execute
-	 */
-	public synchronized PiThread assign(Task task) {
-		tasks.addLast(task);
-		return this;
+		receivedValue = null;
+		validFlag = null;
 	}
 
-	
-	protected synchronized Task nextTask() {
-		return tasks.removeFirst();
+	/////////////////////////// AGENT-LEVEL OPERATIONS  ///////////////////////////
+
+	/** Get the agent managing this thread */
+	public final PiAgent getAgent() {
+		return agent;
 	}
-	
-	/* package */ synchronized void runTask(Task task) throws RunException {
-		tasks.addFirst(task); // preemption
-		task.execute(this);
-		tasks.removeFirst();		
-	}
-	
+
 	/**
 	 * Get the identifier of the Pi-thread. This identifier is ensured unique
 	 * for a given manager agent.
 	 * @return the id as an integer
 	 */
-	public int getThreadId() {
-		return id;
-	}
-	
-	/**
-	 * Check if this Pi-threads is currently blocking
-	 * @return true if the Pi-threads is blocking, false if running
-	 */
-	//public boolean isBlocking() {
-		//return immediateLock.isBlocking();
-	//}
-	
-	
-	/**
-	 * Used by the Agent to assign the thread id upon registration
-	 * @param id The assigned thread identifier
-	 */
-	/* package */ void assignThreadId(int id) {	
-		this.id = id;
-	}
-	
-	protected void sendEvent(ControlEvent event) throws RunException {
+	public abstract int getThreadId();
+
+	/** Assign an agent-specific thread id (cf. ID assignment protocol) */
+	/* package */ abstract void assignThreadId(int id);
+
+	/** Send a control-level event (for tracing, etc.). */
+	protected final void sendEvent(ControlEvent event) throws RunException {
 		try {
 			agent.receiveEvent(event);
 		} catch (InterruptedException e) {
 			RunException re = new RunException("Cannot send event to agent (Thread interrupted)");
 			re.initCause(e);
 			throw re;
-		}		
+		}               
 	}
-	
-	/**
-	 * Log a message for the agent
-	 * @param message
-	 */
-	protected  void log(String message) throws RunException {
+
+	/** Log a message for the agent */
+	protected final void log(String message) throws RunException {
 		sendEvent(new LogEvent(this,message));
 	}
-	
-	@Override
-	public void run() {
-		try {
-			while(!tasks.isEmpty()) {
-				Task task = nextTask();
-				task.execute(this);
-			}
-		} catch(TerminationException te) {
-			try {
-				log(te.getMessage());
-			} catch (RunException e) {
-				Error error = new Error(e.getMessage());
-				error.initCause(e);
-				throw error;
-			}
-			//virer tous les commitment 
-			return;
-		} catch(RunException e) {
-			Error error = new Error(e.getMessage());
-			error.initCause(e);
-			throw error;
-		}
-		
-		try {
-			sendEvent(new UnregisterEvent(this));
-		} catch (RunException e) {
-			Error err = new Error("PiThreads runtime exception");
-			err.initCause(e);
-			throw err;
-		}
-		
-	}
-	
-	protected void receiveValue(Object value) {
-		this.receivedValue = value;
-	}
-	
-	/* package */ Object getReceivedValue() {
-		return receivedValue;
-	}
-	
-	protected void enableGuardIndex(int index) {
-		enabledGuardIndex = index;
-	}
-	
-	protected void waitForCommitment() throws RunException {
-		// block until awaken
-		try {
-			sendEvent(new WaitEvent(this));
-			immediateLock.acquire();
-			if(terminateFlag) {
-				throw new TerminationException();
-			}
-			sendEvent(new AwakeEvent(this));
-		} catch(InterruptedException e) {
-			RunException re = new RunException("Cannot acquire lock: thread interrupted");
-			re.initCause(e);
-			throw re;
-		}
-	}
-	
-	/* package */  boolean terminateFromAgent() {
-		if(!awakeLock.compareAndSet(false, true)) {
-			return false;
-		}
-		
-		if(!immediateLock.isBlocking()) {
-			awakeLock.set(false);
-			return false;
-		}
-		ValidFlag flag = validFlag;
-		validFlag = null;
-		if(flag!=null)
-			flag.valid = false;
-		terminateFlag = true;
-		immediateLock.release();
-		return true;
-	}
-	
-	protected  boolean awake(Commitment commit, Object val) throws RunException {
-		// XXX: we need a lock to avoid a situation when 2 threads awake
-		// the same thread
-		// such a situation can occur in the case of a choice, a typical example is :
-		//
-		//  [t1] c?(x),P + d?(y),Q   ||  [t2] c!a,R   ||  [t3] d!b,S
-		//
-		// suppose the leftmost thread [t1] deposit the two commitments  c?,d?
-		//
-		// now the following may occur:
-		// 1) in [t2] c!a is effected, we find the commitment c?
-		// 2) context-switch and in [t3] then d!b is effected we find the commitment d?
-		// 3) [t3] calls awake(d!b) on [t1]
-		// 4) but before effecting the commitment [t2] calls awake(c!a)
-		
-		// we need a lock so that only one of the two gets actually effected
-		
-		if(!awakeLock.compareAndSet(false, true)) {
-			// cannot take the lock, it's too late
-			// someone else awoke the thread
-			return false;
-		}
-		
-		// here we acquired the lock
-		
-		if(commit.getValidFlag()!=validFlag) {
-			// the commitment is too old
-			awakeLock.set(false);
-			return false;
-		}
-		
-		// perhaps we went a little bit too fast
-		// and the source thread is not yet waiting !
-		while(!immediateLock.isBlocking()) { Thread.yield(); }
 
-		// for choice need to remember the guard index
-		enableGuardIndex(commit.getGuardIndex());
-		if(val!=null) {
-			receivedValue = val;
-		}
-		
-		// if input, receive the value
-		
-		// release the lock
-		//agent.receiveEvent(new ThreadLogEvent(Thread.currentThread(),"Akawing: "+getName()));
-		ValidFlag flag = validFlag;
-		validFlag = null; // cancels the commitments
-		flag.valid = false;  // broadcast the invalidation
-				
-		// no awake the process
-		immediateLock.release();
+	/** Terminate this pi-thread preemptively as ordered by the managing agent.
+	 * (cf. termination detection).
+	 */
+	/* package */ abstract boolean terminateFromAgent();
 
-		// release the awake lock
-		awakeLock.set(false);
-		return true;
+
+	/////////////////////////// TASK MANAGEMENT ///////////////////////////
+
+	/**
+	 * Assigns a task to this Pi-thread. If there is already a running task
+	 * the specified task will be executed after the current one. 
+	 * @param task the task to execute
+	 */
+	public final synchronized PiThread assign(Task task) {
+		tasks.addLast(task);
+		return this;
 	}
 	
-
-	@SuppressWarnings("unchecked")
-	protected <T> Pair<T,PiThread> receiveOrCommit(PiChannel<T> channel, int guardIndex) throws RunException {
-		while(true) { // need to restart asking if got an invalid commitment
-			// first look for an output commitment
-			OutputCommitment output = channel.searchOutputCommitment();
-			if(output==null) {
-				if(validFlag!=null) {
-					throw new Error("validFlag should be null (please report)");
-				}
-				validFlag = new ValidFlag();
-				channel.addInputCommitment(new InputCommitment(this,channel.getId(),validFlag,guardIndex));
-				return null;
-			} else {
-				// ok found a commitment
-				// awake the sender
-				PiThread sender = output.getThreadReference();							
-				if(sender!=null && sender.awake(output,null)) {
-					return new Pair<T,PiThread>((T) output.getValue(),sender);
-				}
-			}
-		}
+	/** Check if there is a task pending. */
+	protected final synchronized boolean taskPending() {
+		return !tasks.isEmpty();
 	}
 
-	/* package */ <T> T receive(PiChannel<T> channel) throws RunException {
-		channel.acquire(this);
+	/** Get the next task to execute. */
+	protected final synchronized Task nextTask() {
+		return tasks.removeFirst();
+	}
+
+	/** Preempt the thread to execute the specified task. */
+	/* package */ synchronized final void runTask(Task task) throws RunException {
+		tasks.addFirst(task); // preemption
+		task.execute(this);
+		tasks.removeFirst();		
+	}
+
+
+	/////////////////////////// CONTROL OPERATIONS  ///////////////////////////
+
+	/** The pi-thread is waiting for synchronization partners. */
+	protected abstract void waitForCommitment() throws RunException;
+
+
+	/** Get the valid flag for the lazy invalidation of outdated commitments. */
+	protected final ValidFlag getValidFlag() {
+		return validFlag;
+	}
+	
+	/** Set the valid flag. */
+	protected final void setValidFlag(ValidFlag flag) {
+		validFlag = flag;
+	}
+
+	/** Awake this pi-thread for the specified commitment (and optional transmitted value). */
+	protected abstract boolean awake(Commitment commit, Object val) throws RunException;
+
+	/** Spawn a child pi-thread with the specified name. */
+	protected abstract PiThread spawn(String name); 
+
+	/** Acquire the specified channel. */
+	protected final void acquire(PiChannel<?> chan) throws RunException{
+		chan.acquire(this);
+	}
+
+	/////////////////////////// RECEPTION PROTOCOL  ///////////////////////////
+
+	/**
+	 * Reception protocol. Either a partner output commitment is available and the reception is
+	 * performed. Otherwise an input commitment is deposited.
+	 * @param channel the channel to receive on.
+	 * @param guardIndex the branch index for an input guard in a choice (cf. choice protocol).
+	 * @return the value received when available, otherwise null.
+	 * @throws RunException if a thread-related fault occurs (e.g. interrupt).
+	 */
+	protected abstract <T> Pair<T,PiThread> receiveOrCommit(PiChannel<T> channel, int branchIndex) throws RunException;
+
+	/**
+	 * Receive a value from the specified channel. This call is blocking is the pi-thread cannot synchronize.
+	 */
+	protected final <T> T receive(PiChannel<T> channel) throws RunException {
+		acquire(channel);
 		Pair<T,PiThread> valueAndSender = receiveOrCommit(channel,-1);
 		if(valueAndSender==null) {
 			// ko no value received (commitment)
-			channel.release(this);
-			waitForCommitment();
-			@SuppressWarnings("unchecked")
-			T value = (T) receivedValue;
-			receivedValue = null;
-			return value;
+			return blockingReceive(channel);
 		} else {
 			// ok a value has been received (synchronization)
-			channel.release(this);
-			return valueAndSender.getFirst();
+			return syncReceive(channel,valueAndSender);
 		}
-	}
-	
-	protected  <T> PiThread sendOrCommit(PiChannel<T> channel, T value, int guardIndex) throws RunException {
-		while(true) {
-			// first look for an output commitment
-			InputCommitment input = channel.searchInputCommitment();
-			if(input==null) {
-				if(validFlag!=null) {
-					throw new Error("validFlag should be null (please report)");
-				}
-				validFlag = new ValidFlag();
-				channel.addOutputCommitment(new OutputCommitment(this,channel.getId(),validFlag,guardIndex,value));
-				return null;
-			} else {
-				// now awake the receiver
-				PiThread receiver = input.getThreadReference();
-				if(receiver!=null && receiver.awake(input,value)) { // the turn of the receiver changes there
-					return receiver;
-				}
-			}
-		}
-		
 	}
 
-	/* package */  <T> void send(PiChannel<T> channel, T value) throws RunException {
-		channel.acquire(this);
+	/** Non-blocking variant of receive. 
+	 * @return a pair (v,flag) with v the received value and flag is true if a value has been received,
+	 * otherwise the value v is unspecified.
+	 */
+	protected abstract <T> Pair<T,Boolean> tryReceive(PiChannel<T> channel) throws RunException;
+
+	/** Perform a synchronization (reception protocol). */
+	protected abstract <T> T syncReceive(PiChannel<T> channel,Pair<T, PiThread> valueAndSender) throws RunException;
+
+	/** Block until synchronization (reception protocol). */
+	protected abstract <T> T blockingReceive(PiChannel<T> channel) throws RunException;
+
+	/** Receive a value (reception protocol). */
+	protected final void receiveValue(Object value) {
+		receivedValue = value;
+	}
+
+	/** Get the received value (reception protocol). */
+	/* package */ final Object getReceivedValue() {
+		return receivedValue;
+	}
+
+	/////////////////////////// EMISSION PROTOCOL  ///////////////////////////
+
+	/**
+	 * Emission protocol. Either a partner input commitment is available and the emission is
+	 * performed. Otherwise an output commitment is deposited.
+	 * @param channel the channel to emit on.
+	 * @param value the value to emit.
+	 * @param guardIndex the branch index for an output guard in a choice (cf. choice protocol).
+	 * @return the receiver pi-thread, if the emission is possible, null otherwise.
+	 * @throws RunException if a thread-related fault occurs (e.g. interrupt).
+	 */
+	protected abstract <T> PiThread sendOrCommit(PiChannel<T> channel, T value, int guardIndex) throws RunException;
+
+	/** Send a value on the specified channel. This call is blocking is the pi-thread cannot synchronize. */
+	protected final <T> void send(PiChannel<T> channel, T value) throws RunException {
+		acquire(channel);
+		if(getValidFlag()!=null) {
+			throw new Error("Valid flag should be null (please report)");
+		}
+
 		PiThread receiver = sendOrCommit(channel, value, -1);
+
+
 		if(receiver==null) {
+			if(getValidFlag()==null) {
+				throw new Error("Valid flag should not be null (please report)");
+			}
+
 			// ko no synchronization is possible
-			channel.release(this);
-			waitForCommitment();
+			blockingSend(channel);
+
+			if(getValidFlag()!=null) {
+				throw new Error("Valid flag should be null (please report)");
+			}
+
 			return;
 		} else {
-			// ok a synchronization took place
-			channel.release(this);
+			syncSend(channel,receiver,value);
+
 			return;
 		}
 	}
-	
-	protected void releaseAllChannels(Set<PiChannel<?>> chans) throws RunException {
-		for(PiChannel<?> chan : chans)
-			chan.release(this);
-	}
-	
-	/* package */ Guard choose(List<Guard> guards, TreeSet<PiChannel<?>> guardedChannels) throws RunException {
-		
+
+	/** Non-blocking variant of send (emission protocol).
+	 * @return true if the emission has been performed, false otherwise
+	 */
+	protected  abstract <T> boolean trySend(PiChannel<T> channel,T value) throws RunException;
+
+
+	/** Perform an synchronization (emission protocol). */
+	protected abstract <T> void syncSend(PiChannel<T> channel,PiThread receiver,T value) throws RunException;
+
+	/** Block until synchronization (emission protocol). */
+	protected abstract <T> void blockingSend(PiChannel<T> channel) throws RunException;
+
+	/////////////////////////// CHOICE PROTOCOL  ///////////////////////////
+
+	/**
+	 * Choice protocol. Try a list of guards and select for execution the first enabled guard.
+	 * This call is blocking until at least one of the guards becomes enabled.
+	 * @param guardedChannels the set of the channels referenced by the guards.
+	 * @return the selected guard.
+	 * @throws RunExceptionif a thread-related fault occurs (e.g. interrupt).
+	 */
+	/* package */ final Guard choose(List<Guard> guards, TreeSet<PiChannel<?>> guardedChannels) throws RunException {
+
 		// first phase, need to acquire all the channels
 		Set<PiChannel<?>> acquiredChannels = new HashSet<PiChannel<?>>();
 
 		boolean allAcquired = false;
-		
+
 		while(!allAcquired) {
 			Iterator<PiChannel<?>> iter = guardedChannels.iterator();
 			boolean restart = false;
@@ -388,7 +269,7 @@ public class PiThread extends Thread {
 				boolean acquired = chan.tryAcquire(this);
 				if(!acquired) { // if cannot acquire
 					restart = true; // then restart (so other threads have the opportunity to acquire the 
-					                // channels)
+					// channels)
 					yield(); // force a context switch
 				} else {
 					acquiredChannels.add(chan);
@@ -402,9 +283,9 @@ public class PiThread extends Thread {
 				allAcquired = true;
 			}
 		}
-		
+
 		// here we acquired all the channels referenced by this choice
-				
+
 		// second phase, try to enable the choice, or deposit some commitment
 		for(int i=0;i<guards.size();i++) {
 			Guard guard = guards.get(i);
@@ -412,11 +293,14 @@ public class PiThread extends Thread {
 			if(!check) {
 				continue; // skip this guard
 			}
+
 			switch(guard.getType()) {
 			case INPUT:
-				Pair<?,?> valueAndSender = receiveOrCommit(guard.asInputGuard().getChannel(), i);
+				Pair<Object,PiThread> valueAndSender = receiveOrCommit(guard.asInputGuard().getChannel(), i);
 				if(valueAndSender!=null) {
-					receivedValue = valueAndSender.getFirst();
+
+					syncReceive(guard.asInputGuard().getChannel(),valueAndSender);
+					acquiredChannels.remove(guard.asInputGuard().getChannel());
 					releaseAllChannels(acquiredChannels);
 					return guard;
 				}
@@ -424,102 +308,66 @@ public class PiThread extends Thread {
 			case OUTPUT:
 				PiThread receiver = sendOrCommit(guard.asOutputGuard().getChannel(),guard.asOutputGuard().getValue(), i);
 				if(receiver!=null) {
+					syncReceive(guard.asOutputGuard().getChannel(), new Pair<Object,PiThread>(guard.asOutputGuard().getValue(),receiver));
+					acquiredChannels.remove(guard.asOutputGuard().getChannel());
 					releaseAllChannels(acquiredChannels);
 					return guard;
 				}
 				break;
-			case USER: // the check has already been done			
-					releaseAllChannels(acquiredChannels);
-					return guard;
+			case USER: // the check has already been done                   
+			releaseAllChannels(acquiredChannels);
+			return guard;
 			default:
-					throw new Error("Unsupported guard type: "+guard.getType());
+				throw new Error("Unsupported guard type: "+guard.getType());
 			}
 		}
-		
-		// third phase : block until the choice gets enabled		
-		
+		// third phase : block until the choice gets enabled            
+
 		// here, all guards are not enabled
 		// no we need to block until an input or an output occur
 		// (user guards are not evaluated anymore)
-		
+
 		// special case : if no acquired channel, the whole choice fails
 		if(acquiredChannels.size()==0)
 			return null;
-		
 		releaseAllChannels(acquiredChannels);
 
 		// now block until one commitment gets enabled 
 		waitForCommitment();
-		
+
 		// when awaken, get the index of the selected guard
+		if(enabledGuardIndex==-1) {
+			throw new Error("Invalid guard index -1 (please report)");
+		}
 		Guard enabledGuard = guards.get(enabledGuardIndex);
-		enabledGuardIndex = -1;
-		return enabledGuard;		
+		setEnabledGuardIndex(-1);
+		return enabledGuard;            
+	}
+	
+	/** set the enabled guard index. */
+	protected final void setEnabledGuardIndex(int index) {
+		enabledGuardIndex = index;
+	}
+
+	/** Release all channels of the specified set. */
+	protected final void releaseAllChannels(Set<PiChannel<?>> chans) throws RunException {
+		for(PiChannel<?> chan : chans)
+			chan.release(this);
+	}
+
+	/////////////////////////// HASHING  ///////////////////////////
+
+	@Override
+	public final int hashCode() {
+		return getName().hashCode();
 	}
 
 	@Override
-	public int hashCode() {
-		return getName().hashCode();
-	}
-	
-	@Override
-	public boolean equals(Object o) {
+	public final boolean equals(Object o) {
 		return o==this; // only referential equality
 	}
 
-	/* package */ <T> boolean trySend(PiChannel<T> channel,T value) throws RunException{
-		boolean inputTook=false;
-		channel.acquire(this);
-		
-		InputCommitment input = channel.searchInputCommitment();
-		if(input==null) {
-			inputTook=false;
-		} else {
-			// now awake the receiver
-			PiThread receiver = input.getThreadReference();
-			if(receiver!=null && receiver.awake(input,value)) { // the turn of the receiver changes there
-				inputTook = true;
-			}
-		}
-		
-		if(inputTook) {
-			channel.release(this);
-			waitForCommitment();
-			return false;
-		} else {
-			channel.release(this);
-			return true;
-		}
-	}
-	
-	
-	@SuppressWarnings("unchecked")
-	/* package */ <T> Pair<T,Boolean> tryReceive(PiChannel<T> channel) throws RunException{
-		T value=null;
-		
-		channel.acquire(this);
-		
-		OutputCommitment output = channel.searchOutputCommitment();
-		if(output==null) {
-			value = null;
-		} else {
-			// ok found a commitment
-			// awake the sender
-			PiThread sender = output.getThreadReference();							
-			if(sender!=null && sender.awake(output,null)) {
-				value =  (T) output.getValue();
-			}
-		}
-		
-		if(value==null) {
-			channel.release(this);
-			value = (T) receivedValue;
-			receivedValue = null;
-			return new Pair<T,Boolean>(null,false);
-		} else {
-			channel.release(this);
-			return new Pair<T,Boolean>(value,true);
-		}
-	}
-	
 }
+
+
+
