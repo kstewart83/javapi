@@ -16,7 +16,6 @@ import pithreads.framework.event.ReclaimEvent;
 import pithreads.framework.event.RegisterEvent;
 import pithreads.framework.event.UnregisterEvent;
 import pithreads.framework.event.WaitEvent;
-import pithreads.framework.event.debug.DebugEvent;
 
 /**
  * 
@@ -27,7 +26,7 @@ import pithreads.framework.event.debug.DebugEvent;
  * set of Pi-threads it manages. In order to avoid any interference or bottleneck,
  * the Pi-threads communicate with their controlling agent using an asynchronous event-queue.
  * 
- * Some notable responsabilities of the Pi-agent are as follows:
+ * Some notable responsibilities of the Pi-agent are as follows:
  * 
  * <ul>
  *   <li>assignment of unique identifiers to Pi-threads and channels</li>
@@ -54,29 +53,32 @@ public class PiAgent extends Thread {
 	private int genThreadId;
 	private int genChanId;
 	private PrintStream logStream;
-	private PrintStream debugStream;
+	private PiFactory factory;
 	private final boolean terminationDetector;
-	private final boolean debugMode;
-	
+
+
 	public static final int ID_NOT_ASSIGNED = -1;
 	public static final int ID_ALREADY_REGISTERED = -2;
 	public static final int ID_TOO_MANY = -3;
 
-	private static int genId = 0;
-	
+	protected static int genId = 0;
+
 	/**
 	 * Create a Pi-agent (default name)
 	 */
-	/* package */ PiAgent(boolean terminationDetector, boolean debugMode, PrintStream logStream, PrintStream debugStream) {
-		this("agent"+(genId++), terminationDetector, debugMode, logStream, debugStream);
+	/* package */ PiAgent(boolean terminationDetector, PrintStream logStream) {
+		this("agent"+(genId++), terminationDetector, logStream);
 	}
-	
+
 	/**
 	 * Create a named Pi-agent
 	 * @param name the name of the Pi-agent
+	 * @param tracemode 
 	 */
-	/* package */ PiAgent(String name, boolean terminationDetector, boolean debugMode, PrintStream logStream, PrintStream debugStream) {
+	protected PiAgent(String name, boolean terminationDetector, PrintStream logStream) {
 		super("agent"+(genId++));
+
+		initialSequence = true;
 		eventQueue = new LinkedBlockingDeque<ControlEvent>(QUEUE_CAPACITY);
 		piThreads = new TreeMap<Integer,PiThread>();
 		initialSequence = true;
@@ -87,19 +89,22 @@ public class PiAgent extends Thread {
 		waitThreads = new HashSet<Integer>();
 		this.terminationDetector = terminationDetector;
 		this.logStream = logStream;
-		this.debugStream = debugStream;
-		this.debugMode = debugMode;
+
 		start();
+	}
+	
+	protected void setFactory(PiFactory factory){
+		this.factory=factory;
+	}
+
+	PiFactory getFactory() {
+		return factory;
 	}
 
 	public boolean detectTermination() {
 		return terminationDetector;
 	}
-	
-	public boolean debugMode() {
-		return debugMode;
-	}
-	
+
 	/**
 	 * Detach the Pi-agent from the thread where it was constructed (e.g main application thread).
 	 * This must be called so that the functionalities such as broadcast primitives and termination/deadlock
@@ -108,7 +113,7 @@ public class PiAgent extends Thread {
 	public void detach() {
 		initialSequence = false;
 	}
-	
+
 	/**
 	 * Receive a control event in this agent. 
 	 * @param event the event to receive
@@ -117,45 +122,45 @@ public class PiAgent extends Thread {
 	/* package */ void receiveEvent(ControlEvent event) throws InterruptedException { // should not be synchronized but ...
 		eventQueue.putFirst(event);
 	}
-	
-	
+
+
 	private synchronized int generateId(int startId, Set<Integer> assignedIDs) {
 		//int count = 0;
 		//int id = startId;
-		
+
 		/*while(count<=Integer.MAX_VALUE) {
-			if(!assignedIDs.contains(id)) {
-				return id;
-			}
-			id++;
-			count++;
-		}*/
-		
+				if(!assignedIDs.contains(id)) {
+					return id;
+				}
+				id++;
+				count++;
+			}*/
+
 		return genId++;
-		
+
 		//return ID_TOO_MANY;
 	}
-	
+
 	private void processRegisterEvent(RegisterEvent event) {
 		PiThread thread = event.getSource();
-		
+
 		if(thread.getThreadId()!=ID_NOT_ASSIGNED) {
 			thread.assignThreadId(ID_ALREADY_REGISTERED);
 			return;
 		}
-		
+
 		int id = generateId(genThreadId, piThreads.keySet());
-		
+
 		if(id==ID_TOO_MANY) {
 			thread.assignThreadId(id);
 			return;
 		}
-		
+
 		piThreads.put(id,thread);
 		thread.assignThreadId(id);
 		genThreadId = (id+1);
 	}
-	
+
 	private void processUnregisterEvent(UnregisterEvent event) {
 		if(piThreads.remove(event.getSource().getThreadId())==null)
 			throw new IllegalArgumentException("PiThread not registered");
@@ -163,33 +168,33 @@ public class PiAgent extends Thread {
 		event.getSource().assignThreadId(ID_NOT_ASSIGNED);
 		log("Thread unregistered : " + event.getSource().getName());
 	}
-	
+
 	private void processNewEvent(NewEvent event) {
 		PiChannel<?> chan = event.getPiChannel();
-		
+
 		if(chan.getId()!=ID_NOT_ASSIGNED) {
 			chan.assignId(ID_ALREADY_REGISTERED);
 			return;
 		}
-		
+
 		int id = generateId(genChanId, piChannels.keySet());
-		
+
 		if(id==ID_TOO_MANY) {
 			chan.assignId(id);
 			return;
 		}
-		
+
 		piChannels.put(id,chan);
 		chan.assignId(id);
 		genChanId = (id+1);
 	}
-	
+
 	private void processReclaimEvent(ReclaimEvent event) {
 		if(piChannels.remove(event.getPiChannel().getId())==null)
 			throw new IllegalArgumentException("Pichannel not registered");
 		event.getPiChannel().assignId(ID_NOT_ASSIGNED);
 	}
-	
+
 	private void processWaitEvent(WaitEvent event) {
 		waitThreads.add(event.getSource().getThreadId());
 	}
@@ -197,16 +202,7 @@ public class PiAgent extends Thread {
 	private void processAwakeEvent(AwakeEvent event) {
 		waitThreads.remove(event.getPiThread().getThreadId());
 	}
-	
-	private void processDebugEvent(DebugEvent event) {
-		if(!debugMode) {
-			throw new IllegalStateException("Agent does not support debugging");
-		}
-		synchronized(debugStream) {
-			debugStream.append(event.toString());
-		}
-	}
-	
+
 	private void processLogEvent(LogEvent event) {
 		synchronized(logStream) {
 			StringBuffer buf = new StringBuffer();
@@ -221,7 +217,7 @@ public class PiAgent extends Thread {
 			logStream.flush();
 		}
 	}
-	
+
 	private void log(String message) {
 		synchronized(logStream) {
 			StringBuffer buf = new StringBuffer();
@@ -252,8 +248,6 @@ public class PiAgent extends Thread {
 			processWaitEvent((WaitEvent) event);
 		} else if(event instanceof AwakeEvent) {
 			processAwakeEvent((AwakeEvent) event);
-		} else if(event instanceof DebugEvent) {
-			processDebugEvent((DebugEvent) event);
 		} else {
 			throw new IllegalArgumentException("Does not understand event: "+event);
 		}
@@ -263,6 +257,7 @@ public class PiAgent extends Thread {
 	public void run() {
 		boolean finished = false;
 		while(!finished) {
+
 			try {
 				//System.out.println("AGENT: next event = ");
 				ControlEvent event = null;
@@ -271,9 +266,9 @@ public class PiAgent extends Thread {
 				if(event!=null) {
 					processEvent(event);
 				}
-				
+
 				//log("Remaining threads = "+piThreads.size());
-				
+
 				if(terminationDetector && waitThreads.size() == piThreads.size() && eventQueue.size()==0 && !initialSequence) {
 					/* Termination detection is started
 					 * look for all threads we know are waiting
@@ -292,7 +287,7 @@ public class PiAgent extends Thread {
 
 					// if the detected waiting threads are all the threads
 					// then the agent should stop
-					
+
 					if(waitingThreads.size() == (piThreads.values().size())) {
 
 						// terminate the waiting threads
@@ -310,6 +305,7 @@ public class PiAgent extends Thread {
 						if(piThreads.size()==0) {
 							finished = true;
 						}
+						System.out.println(piThreads.size());
 					}
 				}
 			} catch (InterruptedException e) {
@@ -322,8 +318,12 @@ public class PiAgent extends Thread {
 				throw error;
 			}
 		}
-		
+
 		// ok let's terminate the agent		
 		log("End of agent");
 	}	 
+
+
 }
+
+

@@ -17,61 +17,26 @@ import java.io.PrintStream;
  *
  */
 public class PiFactory {
-	private boolean terminationDetector;
-	private boolean debugMode;
-	private PrintStream logStream;
-	private PrintStream debugStream;
-	
+	private PiAgentConfig config;
 	private PiAgent agent;
 	
 	/**
-	 * Create a new factory for Pi-threads.
-	 * @param terminationDetector if true then the termination detection algorithm will be enabled
-	 * @param logStream the output stream for log messages
-	 * @param debugMode if true the Pi-thread components will run with debugging support
-	 * @param debugStream the output stream for debug information (traces).
+	 * Get a factory for agents, pi-threads, etc.
+	 * @param config the configuration for the factory
+	 * @return
 	 */
-	public PiFactory(boolean terminationDetector, PrintStream logStream, boolean debugMode, PrintStream debugStream) {
-		this.terminationDetector = terminationDetector;
-		this.debugMode = debugMode;
-		this.logStream = logStream;
-		this.debugStream = debugStream;
+	public static PiFactory getFactory(PiAgentConfig config) {
+		return new PiFactory(config);
+	}
+
+	/** Create a factory instance. */
+	private PiFactory(PiAgentConfig config) {
+		this.config = config;
 		agent = null;
 	}
-	
-	/**
-	 * Create a new factory for Pi-threads with default log and debug streams (stdout and stderr).
-	 * @param terminationDetector if true then the termination detection algorithm will be enabled
-	 * @param debugMode if true the Pi-thread components will run with debugging support
-	 */
-	public PiFactory(boolean terminationDetector, boolean debugMode) {
-		this(terminationDetector,System.out,debugMode,System.err);
-	}
-
-	/**
-	 * Create a new factory for Pi-threads without debugging and with default log and debug streams (stdout and stderr).
-	 * @param terminationDetector if true then the termination detection algorithm will be enabled
-	 */
-	public PiFactory(boolean terminationDetector) {
-		this(terminationDetector,System.out,false,System.err);
-	}
-
-	/**
-	 * Create a new factory for Pi-Threads using an existing agent.
-	 * @param agent The agent used for the factory.
-	 * @param debugMode if true the Pi-thread components will run with debugging support
-	 */
-	public PiFactory(PiAgent agent) {
-		this.agent = agent;
-		terminationDetector = agent.detectTermination();
-		this.debugMode = agent.debugMode();
-		logStream = null;
-		debugStream = null;
-	}
-		
+			
 	/**
 	 * Create a new Pi-thread agent with default name.
-	 * @return a newly created agent.
 	 * @throws IllegalStateException if an agent is already attached to the factory.
 	 */
 	public PiAgent createAgent() {
