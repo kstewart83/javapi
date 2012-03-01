@@ -32,7 +32,7 @@ public class PingPong2 extends Task {
 
 	
 	public static void main(String... args) {
-		PiFactory factory = new PiFactory(true); // with termination detection
+		PiFactory factory = PiFactory.getFactory(); // default config
 		PiAgent agent = factory.createAgent();
 		
 		final PiChannel<Pair<String,Integer>> ping = factory.createChannel("ping");

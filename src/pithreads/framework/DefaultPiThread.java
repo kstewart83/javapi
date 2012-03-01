@@ -1,12 +1,8 @@
 package pithreads.framework;
 
-import java.util.ArrayDeque;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import pithreads.framework.event.AwakeEvent;
-import pithreads.framework.event.ControlEvent;
-import pithreads.framework.event.LogEvent;
 import pithreads.framework.event.RegisterEvent;
 import pithreads.framework.event.UnregisterEvent;
 import pithreads.framework.event.WaitEvent;
@@ -96,20 +92,24 @@ public class DefaultPiThread extends PiThread {
 
 	/////////////////////////// CONTROL OPERATIONS  ///////////////////////////
 
+    protected void blockNow() throws InterruptedException {
+    	immediateLock.acquire();
+    }
+    
 	@Override
-	protected final void waitForCommitment() throws RunException {
+	protected void waitForCommitment() throws RunException {
 		// block until awaken
 		try {
 			// TODO: only if termination detection is enabled
 			sendEvent(new WaitEvent(this));
-			immediateLock.acquire();
+			blockNow();
 			if(terminateFlag) {
 				throw new TerminationException();
 			}
 			// TODO: only if termination detection is enabled
 			sendEvent(new AwakeEvent(this));
 		} catch(InterruptedException e) {
-			RunException re = new RunException("Cannot acquire lock: thread interrupted");
+			RunException re = new RunException("wait for commitments failed: thread interrupted");
 			re.initCause(e);
 			throw re;
 		}
@@ -172,11 +172,6 @@ public class DefaultPiThread extends PiThread {
 		return true;
 	}
 
-	@Override
-	protected final PiThread spawn(String name) {
-		return getAgent().getFactory().createThread(name);
-	}
-
 	/////////////////////////// RECEPTION PROTOCOL  ///////////////////////////
 
 	@Override
@@ -186,10 +181,7 @@ public class DefaultPiThread extends PiThread {
 			// first look for an output commitment
 			OutputCommitment output = channel.searchOutputCommitment();
 			if(output==null) {
-				if(getValidFlag()!=null) {
-					throw new Error("validFlag should be null (please report)");
-				}
-				else { 
+				if(getValidFlag()==null) {
 					setValidFlag(new ValidFlag());
 				}
 				channel.addInputCommitment(new InputCommitment(this,channel.getId(),getValidFlag(),guardIndex));
@@ -208,7 +200,6 @@ public class DefaultPiThread extends PiThread {
 	@SuppressWarnings("unchecked")
 	protected final <T> Pair<T,Boolean> tryReceive(PiChannel<T> channel) throws RunException {
 		T value=null;
-
 		channel.acquire(this);
 
 		OutputCommitment output = channel.searchOutputCommitment();
@@ -260,11 +251,9 @@ public class DefaultPiThread extends PiThread {
 			// first look for an output commitment
 			InputCommitment input = channel.searchInputCommitment();
 			if(input==null) {
-				if(getValidFlag()!=null) {
-					throw new Error("validFlag should be null (please report)");
-				}
-				else
+				if(getValidFlag()==null) {
 					setValidFlag(new ValidFlag());
+				}
 				channel.addOutputCommitment(new OutputCommitment(this,channel.getId(),getValidFlag(),guardIndex,value));
 				return null;
 			} else {
@@ -357,24 +346,6 @@ public class DefaultPiThread extends PiThread {
 		}
 
 	}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 }

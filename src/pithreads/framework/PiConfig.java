@@ -13,7 +13,7 @@ import java.util.Map;
  * @author Frederic Peschanski
  *
  */
-public class PiAgentConfig {
+public class PiConfig {
 	private Map<String,Object> userConfig;
 	
 	private final boolean PIAGENT_TERMINATION_DETECTION__DEFAULT = true;
@@ -23,7 +23,7 @@ public class PiAgentConfig {
 	private final boolean PIAGENT_LOG_USE_STDERR__DEFAULT = false;
 	private final String PIAGENT_LOG_USE_FILE__DEFAULT = null;
 	
-	public PiAgentConfig() {
+	public PiConfig() {
 		userConfig = new HashMap<String, Object>();
 	}
 		
@@ -41,10 +41,12 @@ public class PiAgentConfig {
 		}
 		// second check system environment
 		String opt = System.getProperty("piagent.termination.detection");
-		if(opt.toUpperCase().equals("TRUE")) {
-			return true;
-		} else if(opt.toUpperCase().equals("FALSE")) {
-			return false;
+		if(opt!=null) {
+			if(opt.toUpperCase().equals("TRUE")) {
+				return true;
+			} else if(opt.toUpperCase().equals("FALSE")) {
+				return false;
+			}
 		}
 		// third use default
 		return PIAGENT_TERMINATION_DETECTION__DEFAULT;
@@ -69,10 +71,12 @@ public class PiAgentConfig {
 		}
 		// second check system environment
 		String opt = System.getProperty("piagent.log.use.stdout");
-		if(opt.toUpperCase().equals("TRUE")) {
-			return true;
-		} else if(opt.toUpperCase().equals("FALSE")) {
-			return false;
+		if(opt!=null) {
+			if(opt.toUpperCase().equals("TRUE")) {
+				return true;
+			} else if(opt.toUpperCase().equals("FALSE")) {
+				return false;
+			}
 		}
 		// third use default
 		return PIAGENT_LOG_USE_STDOUT__DEFAULT;
@@ -98,10 +102,12 @@ public class PiAgentConfig {
 		}
 		// second check system environment
 		String opt = System.getProperty("piagent.log.use.stderr");
-		if(opt.toUpperCase().equals("TRUE")) {
-			return true;
-		} else if(opt.toUpperCase().equals("FALSE")) {
-			return false;
+		if(opt!=null) {
+			if(opt.toUpperCase().equals("TRUE")) {
+				return true;
+			} else if(opt.toUpperCase().equals("FALSE")) {
+				return false;
+			}
 		}
 		// third use default
 		return PIAGENT_LOG_USE_STDERR__DEFAULT;
@@ -157,12 +163,14 @@ public class PiAgentConfig {
 		}
 		// second check system environment
 		String opt = System.getProperty("piagent.queue.capacity");
-		try {
-			int val = Integer.parseInt(opt);
-			if(val>0) {
-				return val;
-			}
-		} catch(NumberFormatException e) {}
+		if(opt!=null) {
+			try {
+				int val = Integer.parseInt(opt);
+				if(val>0) {
+					return val;
+				}
+			} catch(NumberFormatException e) {}
+		}
 		// third use default
 		return PIAGENT_QUEUE_SIZE__DEFAULT;
 	}
@@ -194,12 +202,14 @@ public class PiAgentConfig {
 		}
 		// second check system environment
 		String opt = System.getProperty("piagent.queue.poll.timeout");
-		try {
-			long val = Long.parseLong(opt);
-			if(val>0) {
-				return val;
-			}
-		} catch(NumberFormatException e) {}
+		if(opt!=null) {
+			try {
+				long val = Long.parseLong(opt);
+				if(val>0) {
+					return val;
+				}
+			} catch(NumberFormatException e) {}
+		}
 		// third use default
 		return PIAGENT_QUEUE_POLL_TIMEOUT__DEFAULT;
 	}

@@ -56,6 +56,7 @@ public class MsgQueue<T> extends Task {
 			if(queue.isEmpty()) {
 				log("Queue is empty");
 				T msg = receive(put);
+				log("Message in queue: "+msg);
 				queue.addFirst(msg);
 			} else if(queue.size()==capacity) {
 				log("Queue is full");

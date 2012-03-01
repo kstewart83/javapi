@@ -40,7 +40,7 @@ public abstract class Task {
 	 * @return a new private channel.
 	 */
 	protected final <T> PiChannel<T> newChannel(String name) {
-		return new PiChannel<T>(thread.getAgent(), thread, name);
+		return thread.getAgent().getFactory().createChannel(name);
 	}
 	
 	/**
@@ -49,7 +49,7 @@ public abstract class Task {
 	 * @return a new PiThread
 	 */
 	protected final PiThread spawn(String name) {
-		return new PiThread(thread.getAgent(),name);
+		return thread.getAgent().getFactory().createThread(name);
 	}
 	
 	/**
@@ -117,7 +117,7 @@ public abstract class Task {
 	 * A shortcut for printing a newline on the standard output
 	 */
 	protected final void println() {
-		System.out.println();
+		System.out.print("\n");
 	}
 
 	/**
@@ -143,7 +143,7 @@ public abstract class Task {
 	 * A shortcut for printing a newline on the standard error output
 	 */
 	protected final void errln() {
-		System.err.println();		
+		System.err.print("\n");
 	}
 
 	/**
@@ -151,7 +151,7 @@ public abstract class Task {
 	 * Each inherited task must provide an implementation for the task body.
 	 * @throws RunException if a runtime exception occurs
 	 */
-	public abstract void body() throws RunException;
+	protected abstract void body() throws RunException;
 	
 	/**
 	 * Get the Pi-thread actually running this task
@@ -161,7 +161,7 @@ public abstract class Task {
 		return thread;
 	}
 	
-	// XXX: is this needed ?
+	/** Execute the task from the specified Pi-thread */
 	protected final void execute(PiThread thread) throws RunException {
 		this.thread = thread;
 		body();
