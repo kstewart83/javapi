@@ -133,9 +133,6 @@ public abstract class PiThread extends Thread {
 	/** Awake this pi-thread for the specified commitment (and optional transmitted value). */
 	protected abstract boolean awake(Commitment commit, Object val) throws RunException;
 
-	/** Spawn a child pi-thread with the specified name. */
-	protected abstract PiThread spawn(String name); 
-
 	/** Acquire the specified channel. */
 	protected final void acquire(PiChannel<?> chan) throws RunException{
 		chan.acquire(this);

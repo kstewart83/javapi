@@ -1,5 +1,7 @@
 package pithreads.framework;
 
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.PrintStream;
 
 /**
@@ -17,22 +19,31 @@ import java.io.PrintStream;
  *
  */
 public class PiFactory {
-	private PiAgentConfig config;
+	private final PiConfig config;
 	private PiAgent agent;
+	private long threadId;
+	private long chanId;
 	
 	/**
 	 * Get a factory for agents, pi-threads, etc.
 	 * @param config the configuration for the factory
 	 * @return
 	 */
-	public static PiFactory getFactory(PiAgentConfig config) {
+	public static PiFactory getFactory(PiConfig config) {
 		return new PiFactory(config);
+	}
+	
+	/** Get a factory with default configuration. */
+	public static PiFactory getFactory() {
+		return new PiFactory(new PiConfig());
 	}
 
 	/** Create a factory instance. */
-	private PiFactory(PiAgentConfig config) {
+	private PiFactory(PiConfig config) {
 		this.config = config;
 		agent = null;
+		threadId = 1;
+		chanId = 1;
 	}
 			
 	/**
@@ -40,11 +51,7 @@ public class PiFactory {
 	 * @throws IllegalStateException if an agent is already attached to the factory.
 	 */
 	public PiAgent createAgent() {
-		if(agent!=null) {
-			throw new IllegalStateException("Agent already created");
-		}
-		agent = new PiAgent(terminationDetector, debugMode, logStream, debugStream);
-		return agent;		
+		return createAgent("piagent");
 	}
 	
 	/**
@@ -57,7 +64,29 @@ public class PiFactory {
 		if(agent!=null) {
 			throw new IllegalStateException("Agent already created");
 		}
-		agent = new PiAgent(name, terminationDetector, debugMode, logStream, debugStream);
+		if(name=="" || name==null) {
+			throw new IllegalArgumentException("Agent name missing");
+		}
+
+		PrintStream logStream = null;
+		if(config.logUseStdout()) {
+			logStream = System.out;
+		} else if(config.logUseStderr()) {
+			logStream = System.err;
+		} else {
+			String filename = config.logUseFile();
+			if(filename==null) {
+				throw new IllegalArgumentException("Log file name missing");
+			}
+			File logFile = new File(filename);
+			try {
+				logStream = new PrintStream(logFile);
+			} catch(FileNotFoundException e) {
+				throw new Error("Cannot create log file: "+filename);
+			}
+		}
+		
+		agent = new PiAgent(name, config.terminationDetection(), logStream);
 		return agent;
 	}
 	
@@ -70,43 +99,20 @@ public class PiFactory {
 		if(agent==null) {
 			throw new IllegalStateException("Agent not created");
 		}
-		if(debugMode) {
-			if(agent.detectTermination()) {
-				return new DebugPiThread(agent,name);
-			} else {
-				return new DebugDaemonPiThread(agent,name);
-			}
+		if(agent.detectTermination()) {
+			return new DefaultPiThread(agent,name);
 		} else {
-			if(agent.detectTermination()) {
-				return new PiThread(agent,name);
-			} else {
-				return new DaemonPiThread(agent,name);
-			}
+			return new DaemonPiThread(agent,name);
 		}
 	}
 
+	/** Create a new nameless Pi-thread. */
 	public PiThread createThread() {
-		if(agent==null) {
-			throw new IllegalStateException("Agent not created");
-		}
-		if(debugMode) {
-			if(agent.detectTermination()) {
-				return new DebugPiThread(agent);
-			} else {
-				return new DebugDaemonPiThread(agent);
-			}
-		} else {
-			if(agent.detectTermination()) {
-				return new PiThread(agent);
-			} else {
-				return new DaemonPiThread(agent);
-			}
-		}
-		
+		return createThread("thread"+(threadId++));
 	}
 	
 	/**
-	 * Create a new global channel.
+	 * Create a new synchronous channel.
 	 * @param <T> The type of the data conveyed on the channel.
 	 * @param name The name of the channel (for debugging purpose)
 	 * @return a newly created global channel.
@@ -116,5 +122,10 @@ public class PiFactory {
 			throw new IllegalStateException("Agent not created");
 		}		
 		return new PiChannel<T>(agent,null,name);
+	}
+	
+	/** Create a new nameless synchronous channel. */
+	public <T> PiChannel<T> createChannel() {
+		return createChannel("chan"+(chanId++));
 	}
 }

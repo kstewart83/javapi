@@ -48,7 +48,7 @@ public class Async {
 		}
 		
 		// Create the agent
-		PiFactory factory = new PiFactory(true);
+		PiFactory factory = PiFactory.getFactory();
 		PiAgent agent = factory.createAgent("async");
 		
 		// Create the channels

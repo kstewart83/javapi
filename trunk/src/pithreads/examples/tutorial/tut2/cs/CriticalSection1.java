@@ -17,7 +17,7 @@ public class CriticalSection1 {
 			nb_procs = Integer.parseInt(args[0]);
 		}
 		
-		PiFactory factory = new PiFactory(true);
+		PiFactory factory = PiFactory.getFactory();
 		PiAgent agent = factory.createAgent();
 		
 		// create the observer thread

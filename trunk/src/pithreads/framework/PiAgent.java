@@ -259,7 +259,6 @@ public class PiAgent extends Thread {
 		while(!finished) {
 
 			try {
-				//System.out.println("AGENT: next event = ");
 				ControlEvent event = null;
 				event = eventQueue.pollLast(250, TimeUnit.MILLISECONDS); // wait for an event
 				//System.out.println("AGENT: process event = "+event);
@@ -305,7 +304,6 @@ public class PiAgent extends Thread {
 						if(piThreads.size()==0) {
 							finished = true;
 						}
-						System.out.println(piThreads.size());
 					}
 				}
 			} catch (InterruptedException e) {

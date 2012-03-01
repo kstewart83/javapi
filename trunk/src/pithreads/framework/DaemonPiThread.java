@@ -1,7 +1,8 @@
 package pithreads.framework;
 
 
-public class DaemonPiThread extends PiThread {
+
+public class DaemonPiThread extends DefaultPiThread {
 
 	/* package */ DaemonPiThread(PiAgent agent, String name) {
 		super(agent, name);
@@ -12,13 +13,13 @@ public class DaemonPiThread extends PiThread {
 		super(agent);
 	}
 	
-	protected void waitForCommitment() throws RunException {
+	@Override
+	protected final void waitForCommitment() throws RunException {
 		// block until awaken
-		// this version does not send event
 		try {
-			immediateLock.acquire();
+			blockNow();
 		} catch(InterruptedException e) {
-			RunException re = new RunException("Thread interrupted");
+			RunException re = new RunException("wait for commitments failed: thread interrupted");
 			re.initCause(e);
 			throw re;
 		}
