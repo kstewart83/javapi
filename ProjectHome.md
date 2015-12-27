@@ -1,0 +1,1 @@
+JavaPi is a library for easier concurrent programming in Java. It implements a variant of the pi-calculus with processes interacting through synchonous communication channels. It supports advanced features: guarded choice, broadcast, join patterns, etc.
